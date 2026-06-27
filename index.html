@@ -306,6 +306,9 @@
         @media (max-width: 580px) { #sidebar { width: 250px; min-width: 250px; } }
     </style>
 
+    <!-- JSZip for .zip archive support (mobile downloads, BowlRoll, DeviantArt, etc.) -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
     <script type="importmap">
     {
         "imports": {
@@ -330,10 +333,14 @@
             <div class="panel-title">Upload</div>
             <div id="drop-zone">
                 <div class="dz-icon">📂</div>
-                <h3>Drop Model Folder</h3>
-                <p>Drag your <strong>entire model folder</strong><br>(.pmx file + textures)</p>
-                <label class="browse-link" for="file-input">Browse Files</label>
-                <input type="file" id="file-input" webkitdirectory multiple>
+                <h3>Drop Model Folder or ZIP</h3>
+                <p>Drag a <strong>model folder</strong> or <strong>.zip archive</strong><br>containing .pmx + texture files</p>
+                <div style="display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-top:9px;">
+                    <label class="browse-link" for="file-input-folder">Browse Folder</label>
+                    <label class="browse-link" for="file-input-zip">Browse ZIP</label>
+                </div>
+                <input type="file" id="file-input-folder" webkitdirectory multiple>
+                <input type="file" id="file-input-zip" accept=".zip">
             </div>
             <div id="status">Awaiting model…</div>
             <div id="progress-wrap"><div id="progress-bar"></div></div>
@@ -791,8 +798,15 @@ function dlBlob(content, filename, type) {
 }
 
 // ─── File input (browse button) ────────────────────────────────────────────
-document.getElementById('file-input').addEventListener('change', async e => {
+document.getElementById('file-input-folder').addEventListener('change', async e => {
     await processFileList(e.target.files);
+    e.target.value = '';
+});
+
+document.getElementById('file-input-zip').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (file) await processZip(file);
+    e.target.value = '';
 });
 
 // ─── Drag & Drop ──────────────────────────────────────────────────────────
@@ -802,8 +816,19 @@ dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
 dz.addEventListener('drop', async e => {
     e.preventDefault();
     dz.classList.remove('drag-over');
+
+    // Check for a ZIP file first (common when downloading from BowlRoll, DeviantArt, etc.)
+    const files = e.dataTransfer.files;
+    for (const file of files) {
+        if (file.name.toLowerCase().endsWith('.zip')) {
+            await processZip(file);
+            return;
+        }
+    }
+
+    // Otherwise treat as folder drop
     if (e.dataTransfer.items) await processDataTransfer(e.dataTransfer.items);
-    else await processFileList(e.dataTransfer.files);
+    else await processFileList(files);
 });
 
 // ─── File Processing ──────────────────────────────────────────────────────
@@ -849,6 +874,51 @@ async function processFileList(files) {
         }
     }
     startFromMap(map);
+}
+
+// ─── ZIP Processing ───────────────────────────────────────────────────────
+async function processZip(zipFile) {
+    if (typeof JSZip === 'undefined') {
+        toast('JSZip library not loaded — please refresh and try again', 'error');
+        return;
+    }
+
+    showLoading('Extracting ZIP archive…');
+    setStatus('Extracting ZIP…', 'loading');
+    document.getElementById('progress-wrap').style.display = 'block';
+    document.getElementById('progress-bar').style.width = '0%';
+
+    try {
+        const zip     = await JSZip.loadAsync(zipFile);
+        const entries = Object.entries(zip.files).filter(([, f]) => !f.dir);
+        const map     = {};
+        let done      = 0;
+
+        for (const [path, fileObj] of entries) {
+            const blob    = await fileObj.async('blob');
+            const url     = URL.createObjectURL(blob);
+            const name    = path.split(/[/\\]/).pop();
+            const nameLow = name.toLowerCase();
+
+            // Register under every lookup key the URL modifier might use
+            map[path]    = url;
+            map[name]    = url;
+            map[nameLow] = url;
+
+            done++;
+            const pct = Math.round(done / entries.length * 100);
+            document.getElementById('progress-bar').style.width = pct + '%';
+            document.getElementById('loading-detail').textContent =
+                `Unpacking ${done} / ${entries.length} files…`;
+        }
+
+        startFromMap(map);
+    } catch (err) {
+        hideLoading();
+        setStatus('ZIP extraction failed', 'error');
+        toast('Could not read ZIP — ' + err.message, 'error');
+        console.error('[PMX Viewer] JSZip error:', err);
+    }
 }
 
 function startFromMap(map) {
