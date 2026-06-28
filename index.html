@@ -92,7 +92,7 @@
         #drop-zone p { font-size: 11px; color: var(--text-secondary); line-height: 1.5; }
         #drop-zone p strong { color: var(--accent); }
 
-        #file-input { display: none; }
+        #folder-input, #file-input { display: none; }
         .browse-link {
             display: inline-block; margin-top: 9px; padding: 5px 14px;
             background: rgba(108,142,251,0.12); border: 1px solid rgba(108,142,251,0.28);
@@ -100,6 +100,8 @@
             transition: all 0.2s;
         }
         .browse-link:hover { background: rgba(108,142,251,0.22); }
+        .upload-actions { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 9px; }
+        .mobile-note { margin-top: 7px; font-size: 10px; color: var(--text-muted); line-height: 1.45; }
 
         /* Status */
         #status { font-size: 11px; color: var(--text-secondary); text-align: center; padding: 5px 2px; min-height: 22px; }
@@ -292,6 +294,17 @@
         .toast-error   { background: rgba(248,113,113,0.18); border: 1px solid rgba(248,113,113,0.38); color: var(--error); }
         .toast-info    { background: rgba(108,142,251,0.18); border: 1px solid rgba(108,142,251,0.38); color: var(--accent); }
 
+        /* ── Mobile/debug log ──────────────────────────────────────── */
+        #debug-log {
+            max-height: 86px; overflow-y: auto;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 9px; line-height: 1.55; color: var(--text-muted);
+            background: rgba(0,0,0,0.16); border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 7px; padding: 7px;
+        }
+        .debug-line { border-bottom: 1px solid rgba(255,255,255,0.035); padding: 2px 0; }
+        .debug-line:last-child { border-bottom: none; }
+
         /* ── Grid scale label ──────────────────────────────────────── */
         #grid-scale-label {
             position: absolute; bottom: 14px; right: 14px;
@@ -330,10 +343,15 @@
             <div class="panel-title">Upload</div>
             <div id="drop-zone">
                 <div class="dz-icon">📂</div>
-                <h3>Drop Model Folder</h3>
-                <p>Drag your <strong>entire model folder</strong><br>(.pmx file + textures)</p>
-                <label class="browse-link" for="file-input">Browse Files</label>
-                <input type="file" id="file-input" webkitdirectory multiple>
+                <h3>Drop Model Folder or ZIP</h3>
+                <p>Use a <strong>complete model folder</strong> or a mobile-friendly ZIP containing the PMX and textures.</p>
+                <div class="upload-actions">
+                    <label class="browse-link" for="folder-input">Browse Folder</label>
+                    <label class="browse-link" for="file-input">Browse ZIP / Files</label>
+                </div>
+                <div class="mobile-note">ZIP upload is recommended on mobile because folder pickers are not supported everywhere.</div>
+                <input type="file" id="folder-input" webkitdirectory multiple>
+                <input type="file" id="file-input" multiple accept=".pmx,.zip,.png,.jpg,.jpeg,.bmp,.tga,.dds,.webp,.gif,.spa,.sph">
             </div>
             <div id="status">Awaiting model…</div>
             <div id="progress-wrap"><div id="progress-bar"></div></div>
@@ -410,9 +428,17 @@
         <!-- Export -->
         <div class="panel">
             <div class="panel-title">Export</div>
-            <button class="act-btn btn-primary" id="btn-export" disabled>⬇ Export OBJ + MTL</button>
+            <button class="act-btn btn-primary" id="btn-export" disabled>⬇ Export OBJ Package</button>
+            <button class="act-btn btn-ghost"   id="btn-audit" disabled>🧾 Download Audit Report</button>
             <button class="act-btn btn-ghost"   id="btn-screenshot">📷 Save Screenshot</button>
             <button class="act-btn btn-ghost"   id="btn-center" disabled>⊞ Re-center Model</button>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Mobile Debug Log</div>
+            <div id="debug-log" aria-live="polite">
+                <div class="debug-line">Ready. Load a folder, PMX file, or ZIP archive.</div>
+            </div>
         </div>
     </aside>
 
@@ -473,6 +499,7 @@ import * as THREE             from 'three';
 import { OrbitControls }     from 'three/addons/controls/OrbitControls.js';
 import { MMDLoader }         from 'three/addons/loaders/MMDLoader.js';
 import { OBJExporter }       from 'three/addons/exporters/OBJExporter.js';
+import JSZip                  from 'https://cdn.jsdelivr.net/npm/jszip/+esm';
 
 // ─── Renderer & Scene ───────────────────────────────────────────────────────
 const container = document.getElementById('canvas-container');
@@ -560,6 +587,12 @@ let isWireframe  = false;
 let doAutoRotate = false;
 const textureErrors  = [];
 const texStatusMap   = {};
+let currentAssetIndex = createEmptyAssetIndex();
+let currentModelEntry = null;
+let currentStats = null;
+let loadRunId = 0;
+const reusableBlobUrls = new Set();
+const textureExtensions = new Set(['bmp', 'dds', 'gif', 'jpeg', 'jpg', 'png', 'spa', 'sph', 'tga', 'webp']);
 
 // Background preset colors
 const BG_PRESETS = [0x080818, 0x1a1a2e, 0x1e1213, 0xdde3ec, 0x100c22, 0x011409];
@@ -621,8 +654,13 @@ function hideLoading() {
 function showErrorModal(errors) {
     document.getElementById('modal-sub').textContent =
         `${errors.length} texture file${errors.length > 1 ? 's' : ''} could not be found`;
-    document.getElementById('modal-errlist').innerHTML =
-        errors.map(e => `<div>• ${e}</div>`).join('');
+    const list = document.getElementById('modal-errlist');
+    list.innerHTML = '';
+    errors.forEach(error => {
+        const row = document.createElement('div');
+        row.textContent = `• ${error}`;
+        list.appendChild(row);
+    });
     document.getElementById('error-modal').classList.add('visible');
 }
 
@@ -635,32 +673,41 @@ function fmtNum(n) {
 }
 
 function updateModelInfo(mesh) {
-    let verts = 0, faces = 0, mats = 0;
-    mesh.traverse(o => {
-        if (!o.isMesh) return;
-        const g = o.geometry;
-        if (g.attributes.position) verts += g.attributes.position.count;
-        faces += g.index ? g.index.count / 3 : (g.attributes.position ? g.attributes.position.count / 3 : 0);
-        mats++;
-    });
+    const stats = currentStats || collectModelStats(mesh);
 
-    const box  = new THREE.Box3().setFromObject(mesh);
-    const size = box.getSize(new THREE.Vector3());
-
-    document.getElementById('sv-verts').textContent = fmtNum(Math.round(verts));
-    document.getElementById('sv-faces').textContent = fmtNum(Math.round(faces));
-    document.getElementById('sv-mats').textContent  = mats;
-    document.getElementById('sv-size').textContent  = size.y.toFixed(1);
+    document.getElementById('sv-verts').textContent = fmtNum(Math.round(stats.vertices));
+    document.getElementById('sv-faces').textContent = fmtNum(Math.round(stats.triangles));
+    document.getElementById('sv-mats').textContent  = stats.materialCount;
+    document.getElementById('sv-size').textContent  = stats.height.toFixed(1);
     document.getElementById('info-panel').style.display = 'block';
 }
 
 function updateTextureList() {
     const el = document.getElementById('texture-list');
     el.innerHTML = '';
-    for (const [name, status] of Object.entries(texStatusMap)) {
+    const entries = Object.entries(texStatusMap).sort(([a], [b]) => a.localeCompare(b));
+    if (!entries.length) {
         const row = document.createElement('div');
         row.className = 'tex-item';
-        row.innerHTML = `<span class="tex-dot ${status}"></span><span class="tex-name" title="${name}">${name}</span>`;
+        const dot = document.createElement('span');
+        dot.className = 'tex-dot ok';
+        const name = document.createElement('span');
+        name.className = 'tex-name';
+        name.textContent = 'No texture requests detected yet';
+        row.append(dot, name);
+        el.appendChild(row);
+        return;
+    }
+    for (const [name, status] of entries) {
+        const row = document.createElement('div');
+        row.className = 'tex-item';
+        const dot = document.createElement('span');
+        dot.className = `tex-dot ${status}`;
+        const label = document.createElement('span');
+        label.className = 'tex-name';
+        label.title = name;
+        label.textContent = name;
+        row.append(dot, label);
         el.appendChild(row);
     }
 }
@@ -750,49 +797,68 @@ document.getElementById('btn-screenshot').addEventListener('click', () => {
     toast('Screenshot saved!', 'success');
 });
 
-// ─── OBJ + MTL Export ─────────────────────────────────────────────────────
-document.getElementById('btn-export').addEventListener('click', () => {
+// ─── OBJ Package + Audit Export ───────────────────────────────────────────
+document.getElementById('btn-export').addEventListener('click', exportObjPackage);
+document.getElementById('btn-audit').addEventListener('click', () => {
     if (!currentMesh) return;
-
-    // OBJ
-    const exporter = new OBJExporter();
-    const objStr = exporter.parse(currentMesh);
-    dlBlob(objStr, 'model.obj', 'text/plain');
-
-    // Basic MTL
-    const mtlLines = ['# MTL generated by PMX Viewer\n'];
-    currentMesh.traverse(o => {
-        if (!o.isMesh) return;
-        const ms = Array.isArray(o.material) ? o.material : [o.material];
-        ms.forEach((m, i) => {
-            const name = m.name || `mat_${i}`;
-            const c    = m.color || new THREE.Color(1, 1, 1);
-            mtlLines.push(`newmtl ${name}`);
-            mtlLines.push(`Ka 1.000 1.000 1.000`);
-            mtlLines.push(`Kd ${c.r.toFixed(4)} ${c.g.toFixed(4)} ${c.b.toFixed(4)}`);
-            mtlLines.push(`Ks 0.500 0.500 0.500`);
-            mtlLines.push(`Ns 64.00`);
-            mtlLines.push(`d ${m.opacity !== undefined ? m.opacity.toFixed(4) : '1.0000'}`);
-            mtlLines.push(`illum 2`);
-            if (m.map?.image?.src) mtlLines.push(`map_Kd ${m.map.image.src.split(/[/\\]/).pop()}`);
-            if (m.normalMap?.image?.src) mtlLines.push(`map_bump ${m.normalMap.image.src.split(/[/\\]/).pop()}`);
-            mtlLines.push('');
-        });
-    });
-    setTimeout(() => dlBlob(mtlLines.join('\n'), 'model.mtl', 'text/plain'), 150);
-    toast('OBJ + MTL exported!', 'success');
+    dlBlob(generateAuditReport(), `${safeFileBase(currentModelEntry?.path)}-audit.txt`, 'text/plain');
+    toast('Audit report downloaded!', 'success');
 });
 
-function dlBlob(content, filename, type) {
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(new Blob([content], { type }));
-    link.download = filename;
-    link.click();
+async function exportObjPackage() {
+    if (!currentMesh) return;
+
+    setStatus('Packaging OBJ export…', 'loading');
+    logDebug('Starting OBJ package export');
+
+    ensureMaterialNames(currentMesh);
+    const baseName = safeFileBase(currentModelEntry?.path || 'pmx-model');
+    const mtlName = `${baseName}.mtl`;
+    let objStr = new OBJExporter().parse(currentMesh);
+    if (!objStr.startsWith('mtllib ')) objStr = `mtllib ${mtlName}\n${objStr}`;
+
+    const zip = new JSZip();
+    zip.file(`${baseName}.obj`, objStr);
+    zip.file(mtlName, generateMtl(currentMesh));
+    zip.file('PMX_CONVERSION_AUDIT.txt', generateAuditReport());
+
+    const missing = unique(textureErrors).sort();
+    if (missing.length) zip.file('MISSING_TEXTURES.txt', missing.join('\n'));
+
+    const addedTexturePaths = new Set();
+    for (const entry of currentAssetIndex.entries) {
+        if (!isTexturePath(entry.normalizedPath) || addedTexturePaths.has(entry.normalizedPath)) continue;
+        addedTexturePaths.add(entry.normalizedPath);
+        zip.file(entry.normalizedPath, entry.file);
+    }
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    dlBlob(blob, `${baseName}-obj-package.zip`);
+    setStatus(`✓ Exported ${baseName}-obj-package.zip`, 'success');
+    toast('OBJ package exported!', 'success');
+    logDebug(`Exported OBJ package with ${addedTexturePaths.size} texture file(s)`);
 }
 
-// ─── File input (browse button) ────────────────────────────────────────────
+function dlBlob(content, filename, type = 'application/octet-stream') {
+    const blob = content instanceof Blob ? content : new Blob([content], { type });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ─── File input (folder + mobile ZIP/files) ────────────────────────────────
+document.getElementById('folder-input').addEventListener('change', async e => {
+    await processFileList(e.target.files);
+    e.target.value = '';
+});
 document.getElementById('file-input').addEventListener('change', async e => {
     await processFileList(e.target.files);
+    e.target.value = '';
 });
 
 // ─── Drag & Drop ──────────────────────────────────────────────────────────
@@ -802,166 +868,255 @@ dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
 dz.addEventListener('drop', async e => {
     e.preventDefault();
     dz.classList.remove('drag-over');
-    if (e.dataTransfer.items) await processDataTransfer(e.dataTransfer.items);
-    else await processFileList(e.dataTransfer.files);
+    const files = e.dataTransfer.items ? await filesFromDataTransfer(e.dataTransfer) : Array.from(e.dataTransfer.files || []);
+    await processFileList(files);
 });
 
-// ─── File Processing ──────────────────────────────────────────────────────
-async function traverseEntry(entry, map) {
-    if (entry.isFile) {
-        const file = await new Promise(r => entry.file(r));
-        const url  = URL.createObjectURL(file);
-        // Store under both original name and lowercase for case-insensitive lookup
-        map[file.name] = url;
-        map[file.name.toLowerCase()] = url;
-        // Also store by full relative path
-        if (entry.fullPath) map[entry.fullPath.replace(/^\//, '')] = url;
-    } else if (entry.isDirectory) {
-        const reader  = entry.createReader();
-        let batch;
-        do {
-            batch = await new Promise(r => reader.readEntries(r));
-            for (const sub of batch) await traverseEntry(sub, map);
-        } while (batch.length > 0);
-    }
-}
+// ─── File Processing, ZIP Extraction, and Resource Mapping ────────────────
+async function filesFromDataTransfer(dataTransfer) {
+    const items = Array.from(dataTransfer.items || []);
+    const files = [];
 
-async function processDataTransfer(items) {
-    const map = {};
-    for (let i = 0; i < items.length; i++) {
-        const entry = items[i].webkitGetAsEntry?.();
-        if (entry) await traverseEntry(entry, map);
-    }
-    startFromMap(map);
-}
-
-async function processFileList(files) {
-    const map = {};
-    for (const file of files) {
-        const url = URL.createObjectURL(file);
-        map[file.name] = url;
-        map[file.name.toLowerCase()] = url;
-        if (file.webkitRelativePath) {
-            map[file.webkitRelativePath] = url;
-            const parts = file.webkitRelativePath.split('/');
-            map[parts[parts.length - 1]] = url;
-            map[parts[parts.length - 1].toLowerCase()] = url;
+    for (const item of items) {
+        const entry = item.webkitGetAsEntry?.();
+        if (entry) {
+            files.push(...await traverseEntry(entry));
+        } else {
+            const file = item.getAsFile?.();
+            if (file) files.push(file);
         }
     }
-    startFromMap(map);
+
+    return files.length ? files : Array.from(dataTransfer.files || []);
 }
 
-function startFromMap(map) {
-    let pmxUrl = null, pmxName = '';
-    for (const [key, url] of Object.entries(map)) {
-        const base = key.split(/[/\\]/).pop().toLowerCase();
-        if (base.endsWith('.pmx')) { pmxUrl = url; pmxName = base; break; }
+async function traverseEntry(entry, parentPath = '') {
+    if (entry.isFile) {
+        const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+        file.relativePath = `${parentPath}${file.name}`;
+        return [file];
     }
-    if (!pmxUrl) {
-        setStatus('No .pmx file found!', 'error');
-        toast('No .pmx file found in the dropped items', 'error');
-        return;
+
+    if (!entry.isDirectory) return [];
+
+    const reader = entry.createReader();
+    const children = [];
+    let batch;
+    do {
+        batch = await new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+        children.push(...batch);
+    } while (batch.length);
+
+    const nested = [];
+    for (const child of children) nested.push(...await traverseEntry(child, `${parentPath}${entry.name}/`));
+    return nested;
+}
+
+async function processFileList(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+
+    resetAssetSession();
+    showLoading('Indexing files…');
+    setStatus(`Indexing ${files.length} file(s)…`, 'loading');
+    logDebug(`Received ${files.length} uploaded item(s)`);
+
+    try {
+        const expanded = [];
+        for (const file of files) {
+            if (file.name.toLowerCase().endsWith('.zip')) {
+                setStatus(`Extracting ${file.name}…`, 'loading');
+                logDebug(`Extracting ZIP: ${file.name}`);
+                expanded.push(...await expandZip(file));
+            } else {
+                expanded.push(file);
+            }
+        }
+
+        currentAssetIndex = indexFiles(expanded);
+        const pmxEntries = currentAssetIndex.entries
+            .filter(entry => entry.normalizedPath.endsWith('.pmx'))
+            .sort((a, b) => a.normalizedPath.length - b.normalizedPath.length || a.normalizedPath.localeCompare(b.normalizedPath));
+
+        if (!pmxEntries.length) {
+            hideLoading();
+            setStatus('No .pmx file found!', 'error');
+            toast('No .pmx file found in the dropped items', 'error');
+            logDebug('No PMX file found after ZIP/folder expansion');
+            return;
+        }
+
+        const textureCount = currentAssetIndex.entries.filter(entry => isTexturePath(entry.normalizedPath)).length;
+        logDebug(`Indexed ${expanded.length} file(s): ${pmxEntries.length} PMX, ${textureCount} texture candidate(s)`);
+        if (pmxEntries.length > 1) logDebug(`Multiple PMX files found; loading ${pmxEntries[0].path}`);
+        loadModel(pmxEntries[0]);
+    } catch (err) {
+        hideLoading();
+        setStatus('Failed to process upload', 'error');
+        toast('Upload failed — see debug log', 'error');
+        logDebug(`Upload error: ${err.message || err}`);
+        console.error('[PMX Viewer] Upload error:', err);
     }
-    loadModel(pmxUrl, map, pmxName);
+}
+
+async function expandZip(file) {
+    const zip = await JSZip.loadAsync(file);
+    const entries = Object.values(zip.files).filter(entry => !entry.dir);
+    const extracted = [];
+
+    for (const entry of entries) {
+        const blob = await entry.async('blob');
+        const extractedFile = new File([blob], basename(entry.name), {
+            type: blob.type || guessMimeType(entry.name),
+            lastModified: file.lastModified
+        });
+        extractedFile.relativePath = entry.name;
+        extracted.push(extractedFile);
+    }
+
+    logDebug(`ZIP expanded to ${extracted.length} file(s)`);
+    return extracted;
+}
+
+function indexFiles(files) {
+    const index = createEmptyAssetIndex();
+
+    for (const file of files) {
+        const rawPath = file.relativePath || file.webkitRelativePath || file.name;
+        const normalizedPath = normalizePath(rawPath);
+        const objectUrl = URL.createObjectURL(file);
+        reusableBlobUrls.add(objectUrl);
+
+        const entry = {
+            file,
+            objectUrl,
+            path: rawPath,
+            normalizedPath,
+            name: file.name,
+            normalizedName: normalizePath(file.name)
+        };
+
+        index.entries.push(entry);
+        index.byPath.set(normalizedPath, entry);
+        index.urlToPath.set(objectUrl, rawPath);
+
+        const base = basename(normalizedPath);
+        if (!index.byBasename.has(base)) index.byBasename.set(base, []);
+        index.byBasename.get(base).push(entry);
+    }
+
+    return index;
+}
+
+function createEmptyAssetIndex() {
+    return { entries: [], byPath: new Map(), byBasename: new Map(), urlToPath: new Map() };
+}
+
+function resetAssetSession() {
+    loadRunId++;
+    textureErrors.length = 0;
+    for (const k in texStatusMap) delete texStatusMap[k];
+    currentModelEntry = null;
+    currentStats = null;
+
+    if (currentMesh) {
+        scene.remove(currentMesh);
+        disposeMesh(currentMesh);
+        currentMesh = null;
+    }
+
+    for (const url of reusableBlobUrls) URL.revokeObjectURL(url);
+    reusableBlobUrls.clear();
+    currentAssetIndex = createEmptyAssetIndex();
+    document.getElementById('btn-export').disabled = true;
+    document.getElementById('btn-audit').disabled = true;
+    document.getElementById('btn-center').disabled = true;
 }
 
 // ─── Load Model ───────────────────────────────────────────────────────────
-function loadModel(pmxUrl, filesMap, fileName) {
-    // Reset state
+function loadModel(modelEntry) {
+    const runId = ++loadRunId;
+    currentModelEntry = modelEntry;
     textureErrors.length = 0;
     for (const k in texStatusMap) delete texStatusMap[k];
 
     showLoading('Parsing PMX binary…');
-    setStatus('Loading…', 'loading');
+    setStatus(`Loading ${modelEntry.path}…`, 'loading');
+    logDebug(`Loading PMX: ${modelEntry.path}`);
 
     const manager = new THREE.LoadingManager(
-        () => {},                          // onLoad (fires per-loader, not needed here)
-        (url, loaded, total) => {          // onProgress
+        () => {},
+        (url, loaded, total) => {
             if (total > 0) {
                 const pct = Math.round(loaded / total * 100);
                 document.getElementById('progress-bar').style.width = pct + '%';
                 document.getElementById('loading-detail').textContent = `${loaded} / ${total} resources`;
             }
         },
-        (url) => {                         // onError — a resource failed
-            const name = url.split(/[/\\]/).pop();
-            if (name && !textureErrors.includes(name)) {
-                textureErrors.push(name);
-                texStatusMap[name] = 'err';
-            }
+        url => {
+            const label = labelForResource(url);
+            if (isTexturePath(label)) recordTextureStatus(label, 'err');
         }
     );
 
-    // Redirect texture requests to our in-memory blob map
     manager.setURLModifier(url => {
-        if (!url || url.startsWith('blob:') || url.startsWith('data:')) return url;
-        const name    = url.split(/[/\\]/).pop();
-        const nameLow = name.toLowerCase();
-        if (filesMap[name])    { texStatusMap[name] = 'ok'; return filesMap[name]; }
-        if (filesMap[nameLow]) { texStatusMap[name] = 'ok'; return filesMap[nameLow]; }
-        // Try full path match
-        if (filesMap[url]) { texStatusMap[name] = 'ok'; return filesMap[url]; }
-        // Try partial path match
-        for (const [k, v] of Object.entries(filesMap)) {
-            if (k.toLowerCase().endsWith(nameLow)) { texStatusMap[name] = 'ok'; return v; }
+        const normalized = normalizeRequestUrl(url);
+        if (!normalized) return url;
+
+        const match = findAssetMatch(normalized);
+        if (match) {
+            recordTextureStatus(match.path, 'ok');
+            return match.objectUrl;
         }
-        texStatusMap[name] = 'err';
-        return url; // let manager's onError fire
+
+        if (isTexturePath(normalized)) recordTextureStatus(url, 'err');
+        return url;
     });
 
     const loader = new MMDLoader(manager);
-
     loader.load(
-        pmxUrl,
-        // onLoad
+        modelEntry.objectUrl,
         mesh => {
-            // Dispose old mesh
+            if (runId !== loadRunId) {
+                disposeMesh(mesh);
+                return;
+            }
+
             if (currentMesh) {
                 scene.remove(currentMesh);
-                currentMesh.traverse(o => {
-                    if (o.geometry) o.geometry.dispose();
-                    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
-                });
+                disposeMesh(currentMesh);
             }
 
             currentMesh = mesh;
-
-            // Enable shadows and apply wireframe state
             currentMesh.traverse(o => {
                 if (!o.isMesh) return;
                 o.castShadow = o.receiveShadow = true;
-                if (isWireframe) {
-                    const ms = Array.isArray(o.material) ? o.material : [o.material];
-                    ms.forEach(m => (m.wireframe = true));
-                }
+                const ms = Array.isArray(o.material) ? o.material : [o.material];
+                ms.forEach(m => { if (m) m.wireframe = isWireframe; });
             });
 
-            // Sit model on floor, centered XZ
             centerModel(currentMesh);
-
-            // Fit camera to model bounding box
-            const box  = new THREE.Box3().setFromObject(currentMesh);
-            const size = box.getSize(new THREE.Vector3());
-            const maxD = Math.max(size.x, size.y, size.z);
-            camera.position.set(0, size.y * 0.55, maxD * 1.9);
-            controls.target.set(0, size.y * 0.48, 0);
-            controls.update();
-
             scene.add(currentMesh);
+            fitCameraToMesh(currentMesh);
+            ensureMaterialNames(currentMesh);
+            currentStats = collectModelStats(currentMesh);
+
             hideLoading();
             document.getElementById('progress-bar').style.width = '100%';
-            setStatus(`✓ ${fileName}`, 'success');
+            setStatus(`✓ ${modelEntry.path}`, 'success');
             document.getElementById('btn-export').disabled = false;
+            document.getElementById('btn-audit').disabled = false;
             document.getElementById('btn-center').disabled = false;
             updateModelInfo(currentMesh);
             updateTextureList();
             toast('Model loaded!', 'success');
+            logDebug(`Model loaded: ${currentStats.vertices} vertices, ${currentStats.triangles} triangles`);
 
             if (textureErrors.length > 0) {
-                setTimeout(() => showErrorModal(textureErrors), 600);
+                setTimeout(() => showErrorModal(unique(textureErrors)), 600);
+                logDebug(`${textureErrors.length} texture request(s) missing or failed`);
             }
         },
-        // onProgress
         xhr => {
             if (xhr.total > 0) {
                 const pct = Math.round(xhr.loaded / xhr.total * 100);
@@ -973,14 +1128,245 @@ function loadModel(pmxUrl, filesMap, fileName) {
                 else document.getElementById('loading-text').textContent = 'Loading textures…';
             }
         },
-        // onError
         err => {
             hideLoading();
             setStatus('Failed to load model', 'error');
-            toast('Could not parse .pmx file — see console', 'error');
+            toast('Could not parse .pmx file — see debug log', 'error');
+            logDebug(`PMX load error: ${err?.message || err}`);
             console.error('[PMX Viewer] MMDLoader error:', err);
         }
     );
+}
+
+function fitCameraToMesh(mesh) {
+    const box = new THREE.Box3().setFromObject(mesh);
+    const size = box.getSize(new THREE.Vector3());
+    const maxD = Math.max(size.x, size.y, size.z, 1);
+    camera.position.set(0, Math.max(size.y * 0.55, 3), maxD * 1.9);
+    controls.target.set(0, Math.max(size.y * 0.48, 1), 0);
+    camera.near = Math.max(0.01, maxD / 150);
+    camera.far = Math.max(2000, maxD * 150);
+    camera.updateProjectionMatrix();
+    controls.update();
+}
+
+function findAssetMatch(normalizedPath) {
+    if (!normalizedPath) return null;
+
+    const exact = currentAssetIndex.byPath.get(normalizedPath);
+    if (exact) return exact;
+
+    for (const [path, entry] of currentAssetIndex.byPath.entries()) {
+        if (path.endsWith(`/${normalizedPath}`)) return entry;
+    }
+
+    const candidates = currentAssetIndex.byBasename.get(basename(normalizedPath));
+    return candidates?.[0] || null;
+}
+
+function recordTextureStatus(label, status) {
+    const cleanLabel = labelForResource(label);
+    if (!isTexturePath(cleanLabel)) return;
+    texStatusMap[cleanLabel] = status;
+    if (status === 'err' && !textureErrors.includes(cleanLabel)) textureErrors.push(cleanLabel);
+}
+
+function labelForResource(url) {
+    if (!url) return '';
+    if (currentAssetIndex.urlToPath.has(url)) return currentAssetIndex.urlToPath.get(url);
+    const normalized = normalizeRequestUrl(url);
+    return normalized || String(url).split(/[?#]/)[0];
+}
+
+function normalizeRequestUrl(url) {
+    if (!url || /^data:/i.test(url)) return '';
+    if (/^blob:/i.test(url)) return '';
+
+    let clean = String(url).split('#')[0].split('?')[0];
+    if (/^https?:/i.test(clean)) {
+        try {
+            clean = new URL(clean).pathname;
+        } catch {
+            return '';
+        }
+    }
+    try {
+        clean = decodeURIComponent(clean);
+    } catch {
+        // PMX texture paths are not guaranteed to be URI encoded.
+    }
+    return normalizePath(clean);
+}
+
+function normalizePath(path) {
+    return String(path)
+        .replace(/\\/g, '/')
+        .replace(/^\.\//, '')
+        .replace(/^\/+/, '')
+        .replace(/\/+/g, '/')
+        .toLowerCase();
+}
+
+function basename(path) {
+    return String(path).replace(/\\/g, '/').split('/').pop() || '';
+}
+
+function isTexturePath(path) {
+    const ext = basename(path).split('.').pop()?.toLowerCase();
+    return textureExtensions.has(ext);
+}
+
+function guessMimeType(path) {
+    const ext = basename(path).split('.').pop()?.toLowerCase();
+    if (ext === 'png') return 'image/png';
+    if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+    if (ext === 'gif') return 'image/gif';
+    if (ext === 'webp') return 'image/webp';
+    return 'application/octet-stream';
+}
+
+function safeFileBase(path = 'pmx-model') {
+    return basename(path)
+        .replace(/\.pmx$/i, '')
+        .replace(/[^a-z0-9_-]+/gi, '-')
+        .replace(/^-+|-+$/g, '')
+        .toLowerCase() || 'pmx-model';
+}
+
+function unique(values) {
+    return Array.from(new Set(values.filter(Boolean)));
+}
+
+function collectModelStats(mesh) {
+    const materials = new Set();
+    let vertices = 0;
+    let triangles = 0;
+
+    mesh.traverse(o => {
+        if (!o.isMesh || !o.geometry) return;
+        const g = o.geometry;
+        vertices += g.attributes.position?.count || 0;
+        triangles += g.index ? g.index.count / 3 : (g.attributes.position?.count || 0) / 3;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach(m => { if (m) materials.add(m); });
+    });
+
+    const box = new THREE.Box3().setFromObject(mesh);
+    const size = box.getSize(new THREE.Vector3());
+    return { vertices, triangles: Math.round(triangles), materialCount: materials.size, height: size.y };
+}
+
+function ensureMaterialNames(root) {
+    let index = 1;
+    root.traverse(o => {
+        if (!o.isMesh) return;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach(m => {
+            if (!m) return;
+            m.name = sanitizeMaterialName(m.name || `pmx_material_${index++}`);
+        });
+    });
+}
+
+function sanitizeMaterialName(name) {
+    return String(name || 'material').trim().replace(/\s+/g, '_').replace(/[^\w.-]/g, '_').slice(0, 80) || 'material';
+}
+
+function generateMtl(root) {
+    const lines = [
+        '# MTL generated by PMX Viewer & Converter',
+        '# Texture paths are best-effort mappings from the provided folder or ZIP.',
+        ''
+    ];
+    const seen = new Set();
+
+    root.traverse(o => {
+        if (!o.isMesh) return;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach(m => {
+            if (!m || seen.has(m.name)) return;
+            seen.add(m.name);
+            const c = m.color || new THREE.Color(1, 1, 1);
+            lines.push(`newmtl ${sanitizeMaterialName(m.name)}`);
+            lines.push(`Ka ${(c.r * 0.25).toFixed(6)} ${(c.g * 0.25).toFixed(6)} ${(c.b * 0.25).toFixed(6)}`);
+            lines.push(`Kd ${c.r.toFixed(6)} ${c.g.toFixed(6)} ${c.b.toFixed(6)}`);
+            lines.push('Ks 0.100000 0.100000 0.100000');
+            lines.push(`Ns ${m.shininess ? Math.min(1000, Math.max(1, m.shininess)).toFixed(6) : '10.000000'}`);
+            lines.push(`d ${m.opacity === undefined ? '1.000000' : m.opacity.toFixed(6)}`);
+            lines.push('illum 2');
+            const diffuse = texturePathForMtl(m.map);
+            const normal = texturePathForMtl(m.normalMap);
+            if (diffuse) lines.push(`map_Kd ${diffuse}`);
+            if (normal) lines.push(`map_bump ${normal}`);
+            lines.push('');
+        });
+    });
+
+    return lines.join('\n');
+}
+
+function texturePathForMtl(texture) {
+    const source = texture?.image?.currentSrc || texture?.image?.src || texture?.source?.data?.src || '';
+    if (source && currentAssetIndex.urlToPath.has(source)) return normalizePath(currentAssetIndex.urlToPath.get(source));
+    return '';
+}
+
+function generateAuditReport() {
+    const stats = currentStats || collectModelStats(currentMesh);
+    const textureEntries = currentAssetIndex.entries
+        .filter(entry => isTexturePath(entry.normalizedPath))
+        .map(entry => entry.path)
+        .sort();
+    const missing = unique(textureErrors).sort();
+
+    return [
+        'PMX Viewer & Converter audit',
+        '============================',
+        '',
+        `Source model: ${currentModelEntry?.path || 'Unknown'}`,
+        `Vertices: ${Math.round(stats.vertices).toLocaleString()}`,
+        `Triangles: ${Math.round(stats.triangles).toLocaleString()}`,
+        `Materials: ${Math.round(stats.materialCount).toLocaleString()}`,
+        `Model height: ${stats.height.toFixed(3)} world units`,
+        `Indexed texture files: ${textureEntries.length.toLocaleString()}`,
+        `Missing or failed texture requests: ${missing.length.toLocaleString()}`,
+        '',
+        'Important limitations:',
+        '- OBJ is a static mesh format. PMX bones, morphs, IK, toon settings, and physics are not preserved.',
+        '- Texture paths are resolved from the uploaded folder or ZIP using normalized relative paths and basename fallback.',
+        '- Review the original model license/readme before porting, publishing, remixing, or selling converted files.',
+        '',
+        'Missing or failed texture requests:',
+        missing.length ? missing.map(item => `- ${item}`).join('\n') : '- None detected',
+        '',
+        'Indexed texture files:',
+        textureEntries.length ? textureEntries.map(item => `- ${item}`).join('\n') : '- None',
+        ''
+    ].join('\n');
+}
+
+function disposeMesh(mesh) {
+    mesh.traverse(o => {
+        if (o.geometry) o.geometry.dispose();
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach(m => {
+            if (!m) return;
+            for (const key of Object.keys(m)) {
+                const value = m[key];
+                if (value?.isTexture) value.dispose();
+            }
+            m.dispose?.();
+        });
+    });
+}
+
+function logDebug(message) {
+    const log = document.getElementById('debug-log');
+    const line = document.createElement('div');
+    line.className = 'debug-line';
+    line.textContent = `${new Date().toLocaleTimeString()} ${message}`;
+    log.prepend(line);
+    while (log.children.length > 18) log.removeChild(log.lastChild);
 }
 </script>
 </body>

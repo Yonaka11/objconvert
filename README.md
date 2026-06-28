@@ -1,50 +1,58 @@
-# PMX Viewer & Converter
+# PMX Studio
 
-A browser-based viewer and OBJ converter for **MikuMikuDance (.pmx)** model files. Everything runs entirely client-side — no files are ever uploaded to a server.
+A browser-based PMX viewer and OBJ converter for **MikuMikuDance (.pmx)** model files.
+Everything runs client-side in the browser; files are not uploaded to a server.
 
 ## Features
 
 ### Core
-- **Drag & drop** your entire model folder (PMX + texture files) or browse to select it
-- Renders the PMX model in 3D using [Three.js](https://threejs.org/) and the official `MMDLoader`
-- **Export OBJ + MTL** — generates both the geometry file and a companion material file
-- Screenshot capture (PNG)
 
-### UI / Visuals
-- Dark glassmorphism sidebar panel with `backdrop-filter` blur
-- Two-level **3D grid floor** (major 10-unit lines + minor 1-unit lines) with tick marks for scale reference
-- Three-point studio lighting (key, fill, rim) with cast shadows
-- **Error pop-up modal** that lists every texture file that failed to load, with actionable fix guidance
-- Toast notifications for load success/failure and exports
-- FPS counter and camera position overlay
+- Drag and drop a PMX model folder containing the `.pmx` file and texture folders.
+- Render PMX models locally with Three.js and the official `MMDLoader`.
+- Export a static OBJ mesh with companion material data.
+- Capture viewport screenshots.
 
-### View Controls
-- Toggle: grid, wireframe, axes helper, shadows, auto-rotate
-- Sliders: ambient intensity, key light intensity, exponential fog density
-- Six background presets (dark, navy, studio, light, purple, forest)
-- Camera presets: Front / Side / Top + Reset; orbit with mouse/touch
+### UI and visuals
 
-### Model Info Panel
-- Vertex count, polygon count, material count, model height
-- Per-texture status list (green = loaded, red = missing)
+- Dark glassmorphism control panel for uploading, inspecting, and exporting models.
+- Visual 3D floor grid with scale guides so users can understand model size.
+- Studio lighting, orbit controls, and optional axes/grid/wireframe/auto-rotate tools.
+- Texture diagnostics with an error pop-up when referenced texture files fail to load.
+- Model statistics for vertices, polygons/triangles, materials, textures, and scale.
 
 ## Usage
 
-1. Open `index.html` in any modern browser (Chrome, Edge, Firefox, Safari).
-2. Drop your **complete model folder** onto the drop zone — the folder must contain the `.pmx` file alongside its `textures/` subfolder.
-3. Interact with the model using:
-   - **Left-click drag** → orbit
-   - **Right-click drag** → pan
-   - **Scroll wheel** → zoom
-4. Adjust lighting and view options in the sidebar.
-5. Click **Export OBJ + MTL** to download the converted files.
+Open `index.html` in a modern browser, or serve the folder with any static web server.
 
-## Technical Notes
+Recommended local server:
 
-- PMX uses a left-handed coordinate system; `MMDLoader` handles the conversion automatically.
-- Textures are matched by filename (case-insensitive) against everything in the dropped folder tree.
-- OBJ export is static mesh only — bones, physics, and morph targets are not preserved.
-- The MTL file references texture filenames directly; keep textures in the same directory as the OBJ when importing into other tools.
+```bash
+python3 -m http.server 8080
+```
+
+Then open:
+
+```text
+http://localhost:8080
+```
+
+Drop one of the following onto the app:
+
+1. A full PMX model folder containing the `.pmx` file and texture folders.
+2. A single `.pmx` file, if you only need geometry preview/export.
+
+Interact with the model using:
+
+- Left-click drag: orbit
+- Right-click drag: pan
+- Scroll wheel: zoom
+
+## Important limitations
+
+- OBJ is a static mesh format. PMX bones, morphs, IK, toon settings, and physics are not preserved.
+- Texture paths are resolved from the files you provide. If a PMX references missing images or sphere maps, the app shows a texture error dialog.
+- The generated MTL is best effort because PMX material settings do not map perfectly to Wavefront MTL.
+- Always review the original model license/readme before porting, remixing, publishing, or selling converted files.
 
 ## License
 
