@@ -1044,6 +1044,14 @@ function loadModel(modelEntry) {
     setStatus(`Loading ${modelEntry.path}…`, 'loading');
     logDebug(`Loading PMX: ${modelEntry.path}`);
 
+    // MMDLoader inspects the URL string extension before reading any bytes.
+    // A raw blob URL ("blob:https://…/uuid") has no .pmx suffix and triggers:
+    //   "THREE.MMDLoader: Unknown model file extension .io/…"
+    // We pass a virtual URL that preserves the .pmx filename; the URL modifier
+    // below redirects it to the real blob before any network request fires.
+    const modelLoadUrl = modelEntry.path || modelEntry.name || 'model.pmx';
+    logDebug(`MMDLoader virtual URL: "${modelLoadUrl}"`);
+
     const manager = new THREE.LoadingManager(
         () => {},
         (url, loaded, total) => {
@@ -1065,6 +1073,9 @@ function loadModel(modelEntry) {
 
         const match = findAssetMatch(normalized);
         if (match) {
+            if (match.objectUrl === modelEntry.objectUrl) {
+                logDebug(`Resolved PMX blob: "${url}" → ${modelEntry.path}`);
+            }
             recordTextureStatus(match.path, 'ok');
             return match.objectUrl;
         }
@@ -1075,7 +1086,7 @@ function loadModel(modelEntry) {
 
     const loader = new MMDLoader(manager);
     loader.load(
-        modelEntry.objectUrl,
+        modelLoadUrl,
         mesh => {
             if (runId !== loadRunId) {
                 disposeMesh(mesh);
