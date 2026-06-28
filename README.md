@@ -1,17 +1,24 @@
 # PMX Studio
 
-A browser-based PMX viewer and OBJ converter prototype for MikuMikuDance models.
+A browser-based PMX viewer and OBJ converter for **MikuMikuDance (.pmx)** model files.
+Everything runs client-side in the browser; files are not uploaded to a server.
 
 ## Features
 
+### Core
+
+- Drag and drop a PMX model folder containing the `.pmx` file and texture folders.
+- Render PMX models locally with Three.js and the official `MMDLoader`.
+- Export a static OBJ mesh with companion material data.
+- Capture viewport screenshots.
+
+### UI and visuals
+
 - Dark glassmorphism control panel for uploading, inspecting, and exporting models.
-- Local-only PMX loading with Three.js `MMDLoader`; files are not uploaded to a server.
-- Drag-and-drop support for PMX files, full model folders, or ZIP archives.
-- Visual 3D floor grid with 1-unit spacing, 5-unit major guides, and axis labels for scale reference.
+- Visual 3D floor grid with scale guides so users can understand model size.
+- Studio lighting, orbit controls, and optional axes/grid/wireframe/auto-rotate tools.
 - Texture diagnostics with an error pop-up when referenced texture files fail to load.
-- Model statistics for vertices, triangles, materials, and detected texture maps.
-- Viewer tools for auto-framing, wireframe mode, axis/grid toggles, auto-rotate, and screenshots.
-- OBJ export package with a best-effort MTL file and conversion audit report.
+- Model statistics for vertices, polygons/triangles, materials, textures, and scale.
 
 ## Usage
 
@@ -32,8 +39,13 @@ http://localhost:8080
 Drop one of the following onto the app:
 
 1. A full PMX model folder containing the `.pmx` file and texture folders.
-2. A `.zip` archive preserving the original model folder structure.
-3. A single `.pmx` file, if you only need geometry preview/export.
+2. A single `.pmx` file, if you only need geometry preview/export.
+
+Interact with the model using:
+
+- Left-click drag: orbit
+- Right-click drag: pan
+- Scroll wheel: zoom
 
 ## Important limitations
 
@@ -41,3 +53,7 @@ Drop one of the following onto the app:
 - Texture paths are resolved from the files you provide. If a PMX references missing images or sphere maps, the app shows a texture error dialog.
 - The generated MTL is best effort because PMX material settings do not map perfectly to Wavefront MTL.
 - Always review the original model license/readme before porting, remixing, publishing, or selling converted files.
+
+## License
+
+MIT
