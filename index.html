@@ -922,27 +922,43 @@ async function processZip(zipFile) {
 }
 
 function startFromMap(map) {
-    let pmxUrl = null, pmxName = '';
+    let pmxObjectUrl = null, pmxName = '';
     for (const [key, url] of Object.entries(map)) {
-        const base = key.split(/[/\\]/).pop().toLowerCase();
-        if (base.endsWith('.pmx')) { pmxUrl = url; pmxName = base; break; }
+        const base = key.split(/[/\\]/).pop();
+        if (base.toLowerCase().endsWith('.pmx') && !pmxObjectUrl) {
+            pmxObjectUrl = url;
+            pmxName = base; // preserve original case for display
+        }
     }
-    if (!pmxUrl) {
+    if (!pmxObjectUrl) {
         setStatus('No .pmx file found!', 'error');
         toast('No .pmx file found in the dropped items', 'error');
         return;
     }
-    loadModel(pmxUrl, map, pmxName);
+    // Pass a structured entry so loadModel can use the name (not the blob URL)
+    // as the virtual path given to MMDLoader — blob URLs have no extension.
+    loadModel({ objectUrl: pmxObjectUrl, name: pmxName }, map);
 }
 
 // ─── Load Model ───────────────────────────────────────────────────────────
-function loadModel(pmxUrl, filesMap, fileName) {
+// modelEntry = { objectUrl: string, name: string }
+// filesMap   = { [lookupKey: string]: blobUrl }
+function loadModel(modelEntry, filesMap) {
     // Reset state
     textureErrors.length = 0;
     for (const k in texStatusMap) delete texStatusMap[k];
 
     showLoading('Parsing PMX binary…');
     setStatus('Loading…', 'loading');
+
+    // MMDLoader checks the URL extension to decide how to parse the binary.
+    // A raw blob URL like "blob:https://…/uuid" has no .pmx extension and
+    // triggers "Unknown model file extension".  We give MMDLoader a virtual
+    // URL that preserves the .pmx filename; the URL modifier below intercepts
+    // it and returns the real blob URL before any network request fires.
+    const modelLoadUrl = modelEntry.name; // e.g. "miku.pmx"
+    const modelNameLow = modelEntry.name.toLowerCase();
+    console.debug(`[PMX Viewer] MMDLoader virtual URL: "${modelLoadUrl}"`);
 
     const manager = new THREE.LoadingManager(
         () => {},                          // onLoad (fires per-loader, not needed here)
@@ -962,16 +978,28 @@ function loadModel(pmxUrl, filesMap, fileName) {
         }
     );
 
-    // Redirect texture requests to our in-memory blob map
     manager.setURLModifier(url => {
-        if (!url || url.startsWith('blob:') || url.startsWith('data:')) return url;
+        if (!url) return url;
+
+        // Already a resolved blob or data URL — pass through unchanged
+        if (url.startsWith('blob:') || url.startsWith('data:')) return url;
+
+        const urlBaseLow = url.split(/[/\\]/).pop().toLowerCase();
+
+        // ── PMX file itself ──────────────────────────────────────────
+        // Intercept the virtual .pmx URL and return the real blob URL.
+        if (urlBaseLow === modelNameLow) {
+            console.debug(`[PMX Viewer] Resolved PMX blob: "${url}" → ${modelEntry.objectUrl}`);
+            return modelEntry.objectUrl;
+        }
+
+        // ── Textures / assets ────────────────────────────────────────
         const name    = url.split(/[/\\]/).pop();
         const nameLow = name.toLowerCase();
         if (filesMap[name])    { texStatusMap[name] = 'ok'; return filesMap[name]; }
         if (filesMap[nameLow]) { texStatusMap[name] = 'ok'; return filesMap[nameLow]; }
-        // Try full path match
-        if (filesMap[url]) { texStatusMap[name] = 'ok'; return filesMap[url]; }
-        // Try partial path match
+        if (filesMap[url])     { texStatusMap[name] = 'ok'; return filesMap[url]; }
+        // Suffix match (handles sub-folder paths embedded in PMX material refs)
         for (const [k, v] of Object.entries(filesMap)) {
             if (k.toLowerCase().endsWith(nameLow)) { texStatusMap[name] = 'ok'; return v; }
         }
@@ -980,9 +1008,10 @@ function loadModel(pmxUrl, filesMap, fileName) {
     });
 
     const loader = new MMDLoader(manager);
+    const fileName = modelEntry.name;
 
     loader.load(
-        pmxUrl,
+        modelLoadUrl,
         // onLoad
         mesh => {
             // Dispose old mesh
