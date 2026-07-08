@@ -317,6 +317,25 @@
         * { scrollbar-width: thin; scrollbar-color: rgba(108,142,251,0.2) transparent; }
 
         @media (max-width: 580px) { #sidebar { width: 250px; min-width: 250px; } }
+
+        /* ── Layers panel ──────────────────────────────────────────── */
+        #layers-panel { display: none; }
+        #layer-list { max-height: 180px; overflow-y: auto; margin-top: 2px; }
+        #layer-list::-webkit-scrollbar { width: 3px; }
+        #layer-list::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 2px; }
+        .layer-all-btns { display: flex; gap: 6px; margin-bottom: 8px; }
+        .layer-all-btn {
+            flex: 1; padding: 4px 0; border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.09);
+            background: rgba(255,255,255,0.04); color: var(--text-muted);
+            font-size: 10px; cursor: pointer; font-family: inherit; transition: all 0.15s;
+        }
+        .layer-all-btn:hover { background: rgba(255,255,255,0.09); color: var(--text-secondary); }
+        .layer-name {
+            font-size: 11px; color: var(--text-secondary);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            flex: 1; min-width: 0;
+        }
     </style>
 
     <script type="importmap">
@@ -370,6 +389,16 @@
                 <div class="panel-title" style="margin-bottom:6px;">Textures</div>
                 <div id="texture-list"></div>
             </div>
+        </div>
+
+        <!-- Layers (shown after model load) -->
+        <div class="panel" id="layers-panel">
+            <div class="panel-title">Layers</div>
+            <div class="layer-all-btns">
+                <button class="layer-all-btn" id="btn-layers-all">Show All</button>
+                <button class="layer-all-btn" id="btn-layers-none">Hide All</button>
+            </div>
+            <div id="layer-list"></div>
         </div>
 
         <!-- View Controls -->
@@ -712,6 +741,50 @@ function updateTextureList() {
     }
 }
 
+// ─── Layers Panel ─────────────────────────────────────────────────────────
+function buildLayerPanel(mesh) {
+    const panel = document.getElementById('layers-panel');
+    const list  = document.getElementById('layer-list');
+    list.innerHTML = '';
+
+    const layers = [];
+    mesh.traverse(o => {
+        if (!o.isMesh) return;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach(m => {
+            if (m && !layers.includes(m)) layers.push(m);
+        });
+    });
+
+    if (!layers.length) { panel.style.display = 'none'; return; }
+
+    layers.forEach((material, i) => {
+        const item = document.createElement('div');
+        item.className = 'ctrl-row';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'layer-name';
+        const displayName = material.name || `Layer ${i + 1}`;
+        nameSpan.textContent = displayName;
+        nameSpan.title = displayName;
+
+        const toggleLabel = document.createElement('label');
+        toggleLabel.className = 'toggle';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = material.visible !== false;
+        checkbox.addEventListener('change', e => { material.visible = e.target.checked; });
+        const slider = document.createElement('span');
+        slider.className = 'tslider';
+        toggleLabel.append(checkbox, slider);
+
+        item.append(nameSpan, toggleLabel);
+        list.appendChild(item);
+    });
+
+    panel.style.display = 'block';
+}
+
 // ─── Toggle Listeners ─────────────────────────────────────────────────────
 const gridObjects = [gridMajor, gridMinor, tickGroup, floor];
 
@@ -735,6 +808,18 @@ document.getElementById('tog-shadow').addEventListener('change', e => {
     if (currentMesh) currentMesh.traverse(o => { if (o.isMesh && o.material) { const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach(m => (m.needsUpdate = true)); } });
 });
 document.getElementById('tog-rotate').addEventListener('change', e => { doAutoRotate = e.target.checked; });
+
+// Layer show/hide all
+document.getElementById('btn-layers-all').addEventListener('click', () => {
+    document.querySelectorAll('#layer-list input[type="checkbox"]').forEach(cb => {
+        if (!cb.checked) { cb.checked = true; cb.dispatchEvent(new Event('change')); }
+    });
+});
+document.getElementById('btn-layers-none').addEventListener('click', () => {
+    document.querySelectorAll('#layer-list input[type="checkbox"]').forEach(cb => {
+        if (cb.checked) { cb.checked = false; cb.dispatchEvent(new Event('change')); }
+    });
+});
 
 // Sliders
 document.getElementById('sl-ambient').addEventListener('input', e => {
@@ -1031,6 +1116,7 @@ function resetAssetSession() {
     document.getElementById('btn-export').disabled = true;
     document.getElementById('btn-audit').disabled = true;
     document.getElementById('btn-center').disabled = true;
+    document.getElementById('layers-panel').style.display = 'none';
 }
 
 // ─── Load Model ───────────────────────────────────────────────────────────
@@ -1120,6 +1206,7 @@ function loadModel(modelEntry) {
             document.getElementById('btn-center').disabled = false;
             updateModelInfo(currentMesh);
             updateTextureList();
+            buildLayerPanel(currentMesh);
             toast('Model loaded!', 'success');
             logDebug(`Model loaded: ${currentStats.vertices} vertices, ${currentStats.triangles} triangles`);
 
