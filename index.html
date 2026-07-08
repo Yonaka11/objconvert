@@ -136,6 +136,28 @@
         .tex-dot.err { background: var(--error); box-shadow: 0 0 5px rgba(248,113,113,0.5); }
         .tex-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+        /* ── Layers panel ──────────────────────────────────────────── */
+        #layers-panel { display: none; }
+        #layers-list { max-height: 210px; overflow-y: auto; margin-top: 6px; }
+        #layers-list::-webkit-scrollbar { width: 3px; }
+        #layers-list::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 2px; }
+        .layer-row-name {
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            max-width: 176px; font-size: 11px; color: var(--text-secondary);
+        }
+        .layers-header-actions {
+            display: flex; align-items: center; gap: 6px;
+        }
+        .layers-action-btn {
+            background: none; border: none; cursor: pointer;
+            font-size: 9px; color: var(--text-muted); padding: 0;
+            font-family: inherit; letter-spacing: 0.5px;
+            text-transform: uppercase; font-weight: 700;
+            transition: color 0.15s;
+        }
+        .layers-action-btn:hover { color: var(--accent); }
+        .layers-action-sep { color: var(--text-muted); font-size: 9px; }
+
         /* ── Toggle rows ───────────────────────────────────────────── */
         .ctrl-row {
             display: flex; align-items: center; justify-content: space-between;
@@ -370,6 +392,19 @@
                 <div class="panel-title" style="margin-bottom:6px;">Textures</div>
                 <div id="texture-list"></div>
             </div>
+        </div>
+
+        <!-- Layers (shown after model load) -->
+        <div class="panel" id="layers-panel">
+            <div class="panel-title" style="justify-content:space-between; margin-bottom:0;">
+                <span>Layers</span>
+                <span class="layers-header-actions">
+                    <button class="layers-action-btn" id="btn-layers-show-all">Show All</button>
+                    <span class="layers-action-sep">·</span>
+                    <button class="layers-action-btn" id="btn-layers-hide-all">Hide All</button>
+                </span>
+            </div>
+            <div id="layers-list"></div>
         </div>
 
         <!-- View Controls -->
@@ -712,6 +747,63 @@ function updateTextureList() {
     }
 }
 
+// ─── Layers Panel ─────────────────────────────────────────────────────────
+let layerMaterials = [];
+
+function buildLayersPanel(mesh) {
+    const panel = document.getElementById('layers-panel');
+    const list  = document.getElementById('layers-list');
+    list.innerHTML = '';
+    layerMaterials = [];
+
+    mesh.traverse(o => {
+        if (!o.isMesh) return;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach(m => {
+            if (m && !layerMaterials.includes(m)) layerMaterials.push(m);
+        });
+    });
+
+    if (!layerMaterials.length) { panel.style.display = 'none'; return; }
+
+    layerMaterials.forEach((mat, i) => {
+        const displayName = mat.name || `Material ${i + 1}`;
+
+        const row = document.createElement('div');
+        row.className = 'ctrl-row';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'ctrl-label layer-row-name';
+        nameSpan.title = displayName;
+        nameSpan.textContent = displayName;
+
+        const toggleLabel = document.createElement('label');
+        toggleLabel.className = 'toggle';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = mat.visible !== false;
+        checkbox.dataset.layerIdx = i;
+        checkbox.addEventListener('change', e => { mat.visible = e.target.checked; });
+        const slider = document.createElement('span');
+        slider.className = 'tslider';
+        toggleLabel.append(checkbox, slider);
+
+        row.append(nameSpan, toggleLabel);
+        list.appendChild(row);
+    });
+
+    panel.style.display = 'block';
+}
+
+function setAllLayerVisibility(visible) {
+    layerMaterials.forEach(m => { m.visible = visible; });
+    document.querySelectorAll('#layers-list input[type="checkbox"]')
+        .forEach(cb => { cb.checked = visible; });
+}
+
+document.getElementById('btn-layers-show-all').addEventListener('click', () => setAllLayerVisibility(true));
+document.getElementById('btn-layers-hide-all').addEventListener('click', () => setAllLayerVisibility(false));
+
 // ─── Toggle Listeners ─────────────────────────────────────────────────────
 const gridObjects = [gridMajor, gridMinor, tickGroup, floor];
 
@@ -1031,6 +1123,9 @@ function resetAssetSession() {
     document.getElementById('btn-export').disabled = true;
     document.getElementById('btn-audit').disabled = true;
     document.getElementById('btn-center').disabled = true;
+    document.getElementById('layers-panel').style.display = 'none';
+    document.getElementById('layers-list').innerHTML = '';
+    layerMaterials = [];
 }
 
 // ─── Load Model ───────────────────────────────────────────────────────────
@@ -1120,6 +1215,7 @@ function loadModel(modelEntry) {
             document.getElementById('btn-center').disabled = false;
             updateModelInfo(currentMesh);
             updateTextureList();
+            buildLayersPanel(currentMesh);
             toast('Model loaded!', 'success');
             logDebug(`Model loaded: ${currentStats.vertices} vertices, ${currentStats.triangles} triangles`);
 
