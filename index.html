@@ -136,6 +136,34 @@
         .tex-dot.err { background: var(--error); box-shadow: 0 0 5px rgba(248,113,113,0.5); }
         .tex-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+        /* ── Layer list ─────────────────────────────────────────────── */
+        #layers-panel { display: none; }
+        .layer-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 8px; }
+        .layer-btn {
+            padding: 6px 8px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.045); color: var(--text-secondary);
+            font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+            cursor: pointer; transition: all 0.2s; font-family: inherit;
+        }
+        .layer-btn:hover { color: var(--text-primary); border-color: rgba(108,142,251,0.35); background: rgba(108,142,251,0.1); }
+        #layer-list { max-height: 170px; overflow-y: auto; padding-right: 2px; }
+        #layer-list::-webkit-scrollbar { width: 3px; }
+        #layer-list::-webkit-scrollbar-thumb { background: rgba(108,142,251,0.25); border-radius: 2px; }
+        .layer-item {
+            display: flex; align-items: center; justify-content: space-between; gap: 9px;
+            padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .layer-item:last-child { border-bottom: none; }
+        .layer-info { min-width: 0; display: flex; align-items: center; gap: 7px; }
+        .layer-swatch {
+            width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+            border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 0 8px rgba(255,255,255,0.08);
+        }
+        .layer-copy { min-width: 0; }
+        .layer-name { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .layer-meta { font-size: 9px; color: var(--text-muted); margin-top: 1px; }
+        .layer-empty { font-size: 10px; color: var(--text-muted); line-height: 1.45; padding: 4px 0; }
+
         /* ── Toggle rows ───────────────────────────────────────────── */
         .ctrl-row {
             display: flex; align-items: center; justify-content: space-between;
@@ -372,6 +400,16 @@
             </div>
         </div>
 
+        <!-- Model Layers (shown after load) -->
+        <div class="panel" id="layers-panel">
+            <div class="panel-title">Model Layers</div>
+            <div class="layer-tools">
+                <button class="layer-btn" id="btn-layers-all" type="button">Show All</button>
+                <button class="layer-btn" id="btn-layers-none" type="button">Hide All</button>
+            </div>
+            <div id="layer-list"></div>
+        </div>
+
         <!-- View Controls -->
         <div class="panel">
             <div class="panel-title">View Controls</div>
@@ -590,6 +628,7 @@ const texStatusMap   = {};
 let currentAssetIndex = createEmptyAssetIndex();
 let currentModelEntry = null;
 let currentStats = null;
+let currentLayers = [];
 let loadRunId = 0;
 const reusableBlobUrls = new Set();
 const textureExtensions = new Set(['bmp', 'dds', 'gif', 'jpeg', 'jpg', 'png', 'spa', 'sph', 'tga', 'webp']);
@@ -712,9 +751,104 @@ function updateTextureList() {
     }
 }
 
+function updateLayerList(root) {
+    currentLayers = collectModelLayers(root);
+    const panel = document.getElementById('layers-panel');
+    const list = document.getElementById('layer-list');
+    list.innerHTML = '';
+
+    if (!currentLayers.length) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    panel.style.display = 'block';
+    currentLayers.forEach((layer, index) => {
+        const row = document.createElement('div');
+        row.className = 'layer-item';
+
+        const info = document.createElement('div');
+        info.className = 'layer-info';
+
+        const swatch = document.createElement('span');
+        swatch.className = 'layer-swatch';
+        swatch.style.background = materialColor(layer.material);
+
+        const copy = document.createElement('div');
+        copy.className = 'layer-copy';
+
+        const name = document.createElement('div');
+        name.className = 'layer-name';
+        name.title = layer.name;
+        name.textContent = layer.name;
+
+        const meta = document.createElement('div');
+        meta.className = 'layer-meta';
+        meta.textContent = `Material ${index + 1}`;
+
+        copy.append(name, meta);
+        info.append(swatch, copy);
+
+        const toggle = document.createElement('label');
+        toggle.className = 'toggle';
+
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = layer.material.visible !== false;
+        input.setAttribute('aria-label', `Toggle layer ${layer.name}`);
+        input.addEventListener('change', e => {
+            layer.material.visible = e.target.checked;
+        });
+
+        const slider = document.createElement('span');
+        slider.className = 'tslider';
+
+        toggle.append(input, slider);
+        row.append(info, toggle);
+        list.appendChild(row);
+    });
+}
+
+function collectModelLayers(root) {
+    if (!root) return [];
+    const layers = [];
+    const byMaterial = new Map();
+
+    root.traverse(o => {
+        if (!o.isMesh || !o.material) return;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach(material => {
+            if (!material) return;
+            const key = material.uuid || material.id || layers.length;
+            if (byMaterial.has(key)) return;
+            const name = material.name || `Layer ${layers.length + 1}`;
+            const layer = { material, name };
+            byMaterial.set(key, layer);
+            layers.push(layer);
+        });
+    });
+
+    return layers;
+}
+
+function setAllLayersVisible(visible) {
+    currentLayers.forEach(layer => {
+        layer.material.visible = visible;
+    });
+    document.querySelectorAll('#layer-list input[type="checkbox"]').forEach(input => {
+        input.checked = visible;
+    });
+}
+
+function materialColor(material) {
+    return material?.color ? `#${material.color.getHexString()}` : 'rgba(108,142,251,0.35)';
+}
+
 // ─── Toggle Listeners ─────────────────────────────────────────────────────
 const gridObjects = [gridMajor, gridMinor, tickGroup, floor];
 
+document.getElementById('btn-layers-all').addEventListener('click', () => setAllLayersVisible(true));
+document.getElementById('btn-layers-none').addEventListener('click', () => setAllLayersVisible(false));
 document.getElementById('tog-grid').addEventListener('change', e => {
     gridObjects.forEach(o => (o.visible = e.target.checked));
 });
@@ -1018,6 +1152,7 @@ function resetAssetSession() {
     for (const k in texStatusMap) delete texStatusMap[k];
     currentModelEntry = null;
     currentStats = null;
+    currentLayers = [];
 
     if (currentMesh) {
         scene.remove(currentMesh);
@@ -1031,6 +1166,8 @@ function resetAssetSession() {
     document.getElementById('btn-export').disabled = true;
     document.getElementById('btn-audit').disabled = true;
     document.getElementById('btn-center').disabled = true;
+    document.getElementById('layers-panel').style.display = 'none';
+    document.getElementById('layer-list').innerHTML = '';
 }
 
 // ─── Load Model ───────────────────────────────────────────────────────────
@@ -1120,6 +1257,7 @@ function loadModel(modelEntry) {
             document.getElementById('btn-center').disabled = false;
             updateModelInfo(currentMesh);
             updateTextureList();
+            updateLayerList(currentMesh);
             toast('Model loaded!', 'success');
             logDebug(`Model loaded: ${currentStats.vertices} vertices, ${currentStats.triangles} triangles`);
 
