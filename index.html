@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PMX Viewer & Converter</title>
+    <title>PMX / OBJ / FBX Viewer & Converter</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -353,8 +353,8 @@
     <!-- ──────────────── Sidebar ──────────────────────────────────── -->
     <aside id="sidebar">
         <div class="sidebar-logo">
-            <h1>PMX Viewer &amp; Converter</h1>
-            <p>MikuMikuDance Model Tools</p>
+            <h1>PMX / OBJ / FBX Viewer</h1>
+            <p>Browser Model Tools</p>
         </div>
 
         <!-- Upload -->
@@ -363,14 +363,14 @@
             <div id="drop-zone">
                 <div class="dz-icon">📂</div>
                 <h3>Drop Model Folder or ZIP</h3>
-                <p>Use a <strong>complete model folder</strong> or a mobile-friendly ZIP containing the PMX and textures.</p>
+                <p>Use a <strong>complete model folder</strong> or a mobile-friendly ZIP containing PMX, OBJ, FBX, and textures.</p>
                 <div class="upload-actions">
                     <label class="browse-link" for="folder-input">Browse Folder</label>
                     <label class="browse-link" for="file-input">Browse ZIP / Files</label>
                 </div>
                 <div class="mobile-note">ZIP upload is recommended on mobile because folder pickers are not supported everywhere.</div>
                 <input type="file" id="folder-input" webkitdirectory multiple>
-                <input type="file" id="file-input" multiple accept=".pmx,.zip,.png,.jpg,.jpeg,.bmp,.tga,.dds,.webp,.gif,.spa,.sph">
+                <input type="file" id="file-input" multiple accept=".pmx,.obj,.mtl,.fbx,.zip,.png,.jpg,.jpeg,.bmp,.tga,.dds,.webp,.gif,.spa,.sph">
             </div>
             <div id="status">Awaiting model…</div>
             <div id="progress-wrap"><div id="progress-bar"></div></div>
@@ -466,7 +466,7 @@
         <div class="panel">
             <div class="panel-title">Mobile Debug Log</div>
             <div id="debug-log" aria-live="polite">
-                <div class="debug-line">Ready. Load a folder, PMX file, or ZIP archive.</div>
+                <div class="debug-line">Ready. Load a folder, PMX/OBJ/FBX file, or ZIP archive.</div>
             </div>
         </div>
     </aside>
@@ -491,7 +491,7 @@
         <!-- Spinner overlay while model loads -->
         <div id="loading-overlay">
             <div class="spinner"></div>
-            <div id="loading-text">Parsing PMX binary…</div>
+            <div id="loading-text">Parsing model data…</div>
             <div id="loading-detail"></div>
         </div>
     </main>
@@ -510,7 +510,7 @@
         <div class="modal-body">
             The model geometry loaded successfully, but the following texture files were <strong style="color:var(--text-primary)">not found</strong> in your uploaded folder. The affected surfaces will render without color maps.
             <div class="modal-errlist" id="modal-errlist"></div>
-            <span class="modal-tip">How to fix:</span> Drop your <em>entire model folder</em> rather than just the .pmx file — texture sub-folders must be included alongside it.
+            <span class="modal-tip">How to fix:</span> Drop your <em>entire model folder</em> rather than only the model file — texture sub-folders must be included alongside it.
         </div>
         <div class="modal-footer">
             <button class="mbtn mbtn-dismiss"  onclick="dismissModal()">Dismiss</button>
@@ -527,6 +527,9 @@
 import * as THREE             from 'three';
 import { OrbitControls }     from 'three/addons/controls/OrbitControls.js';
 import { MMDLoader }         from 'three/addons/loaders/MMDLoader.js';
+import { MTLLoader }         from 'three/addons/loaders/MTLLoader.js';
+import { OBJLoader }         from 'three/addons/loaders/OBJLoader.js';
+import { FBXLoader }         from 'three/addons/loaders/FBXLoader.js';
 import { OBJExporter }       from 'three/addons/exporters/OBJExporter.js';
 import JSZip                  from 'https://cdn.jsdelivr.net/npm/jszip/+esm';
 
@@ -621,6 +624,7 @@ let currentModelEntry = null;
 let currentStats = null;
 let loadRunId = 0;
 const reusableBlobUrls = new Set();
+const modelExtensions = new Set(['fbx', 'obj', 'pmx']);
 const textureExtensions = new Set(['bmp', 'dds', 'gif', 'jpeg', 'jpg', 'png', 'spa', 'sph', 'tga', 'webp']);
 
 // Background preset colors
@@ -876,7 +880,7 @@ function centerModel(mesh) {
 document.getElementById('btn-screenshot').addEventListener('click', () => {
     renderer.render(scene, camera);
     const link = document.createElement('a');
-    link.download = 'pmx-viewer.png';
+    link.download = 'model-viewer.png';
     link.href = renderer.domElement.toDataURL('image/png');
     link.click();
     toast('Screenshot saved!', 'success');
@@ -897,7 +901,7 @@ async function exportObjPackage() {
     logDebug('Starting OBJ package export');
 
     ensureMaterialNames(currentMesh);
-    const baseName = safeFileBase(currentModelEntry?.path || 'pmx-model');
+    const baseName = safeFileBase(currentModelEntry?.path || 'model');
     const mtlName = `${baseName}.mtl`;
     let objStr = new OBJExporter().parse(currentMesh);
     if (!objStr.startsWith('mtllib ')) objStr = `mtllib ${mtlName}\n${objStr}`;
@@ -905,7 +909,7 @@ async function exportObjPackage() {
     const zip = new JSZip();
     zip.file(`${baseName}.obj`, objStr);
     zip.file(mtlName, generateMtl(currentMesh));
-    zip.file('PMX_CONVERSION_AUDIT.txt', generateAuditReport());
+    zip.file('MODEL_CONVERSION_AUDIT.txt', generateAuditReport());
 
     const missing = unique(textureErrors).sort();
     if (missing.length) zip.file('MISSING_TEXTURES.txt', missing.join('\n'));
@@ -1019,28 +1023,29 @@ async function processFileList(fileList) {
         }
 
         currentAssetIndex = indexFiles(expanded);
-        const pmxEntries = currentAssetIndex.entries
-            .filter(entry => entry.normalizedPath.endsWith('.pmx'))
+        const modelEntries = currentAssetIndex.entries
+            .filter(entry => isModelPath(entry.normalizedPath))
             .sort((a, b) => a.normalizedPath.length - b.normalizedPath.length || a.normalizedPath.localeCompare(b.normalizedPath));
 
-        if (!pmxEntries.length) {
+        if (!modelEntries.length) {
             hideLoading();
-            setStatus('No .pmx file found!', 'error');
-            toast('No .pmx file found in the dropped items', 'error');
-            logDebug('No PMX file found after ZIP/folder expansion');
+            setStatus('No supported model file found!', 'error');
+            toast('No .pmx, .obj, or .fbx file found', 'error');
+            logDebug('No supported model file found after ZIP/folder expansion');
             return;
         }
 
         const textureCount = currentAssetIndex.entries.filter(entry => isTexturePath(entry.normalizedPath)).length;
-        logDebug(`Indexed ${expanded.length} file(s): ${pmxEntries.length} PMX, ${textureCount} texture candidate(s)`);
-        if (pmxEntries.length > 1) logDebug(`Multiple PMX files found; loading ${pmxEntries[0].path}`);
-        loadModel(pmxEntries[0]);
+        const modelCounts = summarizeModelCounts(currentAssetIndex.entries);
+        logDebug(`Indexed ${expanded.length} file(s): ${modelCounts}, ${textureCount} texture candidate(s)`);
+        if (modelEntries.length > 1) logDebug(`Multiple model files found; loading ${modelEntries[0].path}`);
+        loadModel(modelEntries[0]);
     } catch (err) {
         hideLoading();
         setStatus('Failed to process upload', 'error');
         toast('Upload failed — see debug log', 'error');
         logDebug(`Upload error: ${err.message || err}`);
-        console.error('[PMX Viewer] Upload error:', err);
+        console.error('[Model Viewer] Upload error:', err);
     }
 }
 
@@ -1122,21 +1127,21 @@ function resetAssetSession() {
 // ─── Load Model ───────────────────────────────────────────────────────────
 function loadModel(modelEntry) {
     const runId = ++loadRunId;
+    const extension = extensionForPath(modelEntry.normalizedPath);
+    const formatLabel = modelFormatLabel(extension);
     currentModelEntry = modelEntry;
     textureErrors.length = 0;
     for (const k in texStatusMap) delete texStatusMap[k];
 
-    showLoading('Parsing PMX binary…');
+    showLoading(`Parsing ${formatLabel} model…`);
     setStatus(`Loading ${modelEntry.path}…`, 'loading');
-    logDebug(`Loading PMX: ${modelEntry.path}`);
+    logDebug(`Loading ${formatLabel}: ${modelEntry.path}`);
 
-    // MMDLoader inspects the URL string extension before reading any bytes.
-    // A raw blob URL ("blob:https://…/uuid") has no .pmx suffix and triggers:
-    //   "THREE.MMDLoader: Unknown model file extension .io/…"
-    // We pass a virtual URL that preserves the .pmx filename; the URL modifier
-    // below redirects it to the real blob before any network request fires.
-    const modelLoadUrl = modelEntry.path || modelEntry.name || 'model.pmx';
-    logDebug(`MMDLoader virtual URL: "${modelLoadUrl}"`);
+    // Some loaders inspect the URL string extension before reading any bytes.
+    // A raw blob URL ("blob:https://…/uuid") has no model suffix, so we pass a
+    // virtual URL that preserves the filename and redirect it below.
+    const modelLoadUrl = modelEntry.path || modelEntry.name || `model.${extension || 'pmx'}`;
+    logDebug(`${formatLabel} virtual URL: "${modelLoadUrl}"`);
 
     const manager = new THREE.LoadingManager(
         () => {},
@@ -1160,7 +1165,7 @@ function loadModel(modelEntry) {
         const match = findAssetMatch(normalized);
         if (match) {
             if (match.objectUrl === modelEntry.objectUrl) {
-                logDebug(`Resolved PMX blob: "${url}" → ${modelEntry.path}`);
+                logDebug(`Resolved ${formatLabel} blob: "${url}" → ${modelEntry.path}`);
             }
             recordTextureStatus(match.path, 'ok');
             return match.objectUrl;
@@ -1170,70 +1175,119 @@ function loadModel(modelEntry) {
         return url;
     });
 
-    const loader = new MMDLoader(manager);
-    loader.load(
-        modelLoadUrl,
-        mesh => {
-            if (runId !== loadRunId) {
-                disposeMesh(mesh);
-                return;
-            }
+    const onLoad = root => finishModelLoad(root, runId, formatLabel);
+    const onProgress = xhr => { if (runId === loadRunId) updateModelLoadProgress(xhr); };
+    const onError = err => { if (runId === loadRunId) handleModelLoadError(err, formatLabel); };
 
-            if (currentMesh) {
-                scene.remove(currentMesh);
-                disposeMesh(currentMesh);
-            }
+    if (extension === 'pmx') {
+        new MMDLoader(manager).load(modelLoadUrl, onLoad, onProgress, onError);
+    } else if (extension === 'obj') {
+        loadObjModel(modelEntry, modelLoadUrl, manager, onLoad, onProgress, onError);
+    } else if (extension === 'fbx') {
+        new FBXLoader(manager).load(modelLoadUrl, onLoad, onProgress, onError);
+    } else {
+        onError(new Error(`Unsupported model extension: .${extension || 'unknown'}`));
+    }
+}
 
-            currentMesh = mesh;
-            currentMesh.traverse(o => {
-                if (!o.isMesh) return;
-                o.castShadow = o.receiveShadow = true;
-                const ms = Array.isArray(o.material) ? o.material : [o.material];
-                ms.forEach(m => { if (m) m.wireframe = isWireframe; });
-            });
+async function loadObjModel(modelEntry, modelLoadUrl, manager, onLoad, onProgress, onError) {
+    const objLoader = new OBJLoader(manager);
 
-            centerModel(currentMesh);
-            scene.add(currentMesh);
-            fitCameraToMesh(currentMesh);
-            ensureMaterialNames(currentMesh);
-            currentStats = collectModelStats(currentMesh);
-
-            hideLoading();
-            document.getElementById('progress-bar').style.width = '100%';
-            setStatus(`✓ ${modelEntry.path}`, 'success');
-            document.getElementById('btn-export').disabled = false;
-            document.getElementById('btn-audit').disabled = false;
-            document.getElementById('btn-center').disabled = false;
-            updateModelInfo(currentMesh);
-            updateTextureList();
-            buildLayerPanel(currentMesh);
-            toast('Model loaded!', 'success');
-            logDebug(`Model loaded: ${currentStats.vertices} vertices, ${currentStats.triangles} triangles`);
-
-            if (textureErrors.length > 0) {
-                setTimeout(() => showErrorModal(unique(textureErrors)), 600);
-                logDebug(`${textureErrors.length} texture request(s) missing or failed`);
-            }
-        },
-        xhr => {
-            if (xhr.total > 0) {
-                const pct = Math.round(xhr.loaded / xhr.total * 100);
-                document.getElementById('progress-bar').style.width = pct + '%';
-                document.getElementById('loading-detail').textContent =
-                    `${pct}%  —  ${(xhr.loaded / 1024 / 1024).toFixed(1)} MB`;
-                if (pct < 40) document.getElementById('loading-text').textContent = 'Reading binary data…';
-                else if (pct < 80) document.getElementById('loading-text').textContent = 'Building 3D geometry…';
-                else document.getElementById('loading-text').textContent = 'Loading textures…';
-            }
-        },
-        err => {
-            hideLoading();
-            setStatus('Failed to load model', 'error');
-            toast('Could not parse .pmx file — see debug log', 'error');
-            logDebug(`PMX load error: ${err?.message || err}`);
-            console.error('[PMX Viewer] MMDLoader error:', err);
+    try {
+        const objText = await modelEntry.file.text();
+        const mtlEntry = findMaterialLibraryEntry(objText, modelEntry);
+        if (!mtlEntry) {
+            logDebug('No MTL material library found for OBJ; loading geometry only');
+            objLoader.load(modelLoadUrl, onLoad, onProgress, onError);
+            return;
         }
-    );
+
+        const mtlLoadUrl = mtlEntry.path || mtlEntry.name || 'materials.mtl';
+        const mtlLoader = new MTLLoader(manager);
+        const materialBasePath = dirname(mtlEntry.path || mtlEntry.name);
+        if (materialBasePath) mtlLoader.setResourcePath(`${materialBasePath}/`);
+
+        logDebug(`Loading OBJ material library: ${mtlEntry.path}`);
+        mtlLoader.load(
+            mtlLoadUrl,
+            materials => {
+                materials.preload();
+                objLoader.setMaterials(materials);
+                objLoader.load(modelLoadUrl, onLoad, onProgress, onError);
+            },
+            undefined,
+            err => {
+                logDebug(`MTL load failed; loading OBJ without materials: ${err?.message || err}`);
+                objLoader.load(modelLoadUrl, onLoad, onProgress, onError);
+            }
+        );
+    } catch (err) {
+        logDebug(`OBJ material scan failed; loading geometry only: ${err?.message || err}`);
+        objLoader.load(modelLoadUrl, onLoad, onProgress, onError);
+    }
+}
+
+function finishModelLoad(root, runId, formatLabel) {
+    if (runId !== loadRunId) {
+        disposeMesh(root);
+        return;
+    }
+
+    if (currentMesh) {
+        scene.remove(currentMesh);
+        disposeMesh(currentMesh);
+    }
+
+    currentMesh = root;
+    currentMesh.traverse(o => {
+        if (!o.isMesh) return;
+        o.castShadow = o.receiveShadow = true;
+        const ms = Array.isArray(o.material) ? o.material : [o.material];
+        ms.forEach(m => { if (m) m.wireframe = isWireframe; });
+    });
+
+    centerModel(currentMesh);
+    scene.add(currentMesh);
+    fitCameraToMesh(currentMesh);
+    ensureMaterialNames(currentMesh);
+    currentStats = collectModelStats(currentMesh);
+
+    hideLoading();
+    document.getElementById('progress-bar').style.width = '100%';
+    setStatus(`✓ ${currentModelEntry.path}`, 'success');
+    document.getElementById('btn-export').disabled = false;
+    document.getElementById('btn-audit').disabled = false;
+    document.getElementById('btn-center').disabled = false;
+    updateModelInfo(currentMesh);
+    updateTextureList();
+    buildLayerPanel(currentMesh);
+    toast(`${formatLabel} model loaded!`, 'success');
+    logDebug(`Model loaded: ${currentStats.vertices} vertices, ${currentStats.triangles} triangles`);
+
+    if (textureErrors.length > 0) {
+        setTimeout(() => showErrorModal(unique(textureErrors)), 600);
+        logDebug(`${textureErrors.length} texture request(s) missing or failed`);
+    }
+}
+
+function updateModelLoadProgress(xhr) {
+    if (xhr.total > 0) {
+        const pct = Math.round(xhr.loaded / xhr.total * 100);
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('loading-detail').textContent =
+            `${pct}%  —  ${(xhr.loaded / 1024 / 1024).toFixed(1)} MB`;
+        if (pct < 40) document.getElementById('loading-text').textContent = 'Reading model data…';
+        else if (pct < 80) document.getElementById('loading-text').textContent = 'Building 3D geometry…';
+        else document.getElementById('loading-text').textContent = 'Loading textures…';
+    }
+}
+
+function handleModelLoadError(err, formatLabel) {
+    hideLoading();
+    setStatus('Failed to load model', 'error');
+    toast(`Could not parse ${formatLabel} file — see debug log`, 'error');
+    logDebug(`${formatLabel} load error: ${err?.message || err}`);
+    console.error(`[Model Viewer] ${formatLabel} loader error:`, err);
 }
 
 function fitCameraToMesh(mesh) {
@@ -1246,6 +1300,62 @@ function fitCameraToMesh(mesh) {
     camera.far = Math.max(2000, maxD * 150);
     camera.updateProjectionMatrix();
     controls.update();
+}
+
+function extensionForPath(path) {
+    const name = basename(path).toLowerCase();
+    const dot = name.lastIndexOf('.');
+    return dot >= 0 ? name.slice(dot + 1) : '';
+}
+
+function isModelPath(path) {
+    return modelExtensions.has(extensionForPath(path));
+}
+
+function modelFormatLabel(extension) {
+    return (extension || 'model').toUpperCase();
+}
+
+function summarizeModelCounts(entries) {
+    const counts = { pmx: 0, obj: 0, fbx: 0 };
+    entries.forEach(entry => {
+        const extension = extensionForPath(entry.normalizedPath);
+        if (extension in counts) counts[extension]++;
+    });
+    return Object.entries(counts)
+        .filter(([, count]) => count > 0)
+        .map(([extension, count]) => `${count} ${extension.toUpperCase()}`)
+        .join(', ') || '0 models';
+}
+
+function findMaterialLibraryEntry(objText, modelEntry) {
+    const objDir = dirname(modelEntry.normalizedPath);
+    const references = [];
+
+    for (const line of String(objText).split(/\r?\n/)) {
+        const match = line.trim().match(/^mtllib\s+(.+)$/i);
+        if (!match) continue;
+        const value = match[1].trim();
+        references.push(value);
+        value.split(/\s+/).forEach(part => references.push(part));
+    }
+
+    for (const reference of unique(references)) {
+        const candidates = [
+            joinPath(objDir, reference),
+            reference
+        ];
+        for (const candidate of candidates) {
+            const match = findAssetMatch(normalizePath(candidate));
+            if (match && extensionForPath(match.normalizedPath) === 'mtl') return match;
+        }
+    }
+
+    const siblingMtls = currentAssetIndex.entries.filter(entry =>
+        extensionForPath(entry.normalizedPath) === 'mtl' &&
+        dirname(entry.normalizedPath) === objDir
+    );
+    return siblingMtls.length === 1 ? siblingMtls[0] : null;
 }
 
 function findAssetMatch(normalizedPath) {
@@ -1291,7 +1401,7 @@ function normalizeRequestUrl(url) {
     try {
         clean = decodeURIComponent(clean);
     } catch {
-        // PMX texture paths are not guaranteed to be URI encoded.
+        // Model texture paths are not guaranteed to be URI encoded.
     }
     return normalizePath(clean);
 }
@@ -1309,6 +1419,16 @@ function basename(path) {
     return String(path).replace(/\\/g, '/').split('/').pop() || '';
 }
 
+function dirname(path) {
+    const parts = normalizePath(path).split('/');
+    parts.pop();
+    return parts.join('/');
+}
+
+function joinPath(dir, path) {
+    return normalizePath(`${dir ? `${dir}/` : ''}${path}`);
+}
+
 function isTexturePath(path) {
     const ext = basename(path).split('.').pop()?.toLowerCase();
     return textureExtensions.has(ext);
@@ -1323,12 +1443,12 @@ function guessMimeType(path) {
     return 'application/octet-stream';
 }
 
-function safeFileBase(path = 'pmx-model') {
+function safeFileBase(path = 'model') {
     return basename(path)
-        .replace(/\.pmx$/i, '')
+        .replace(/\.(pmx|obj|fbx)$/i, '')
         .replace(/[^a-z0-9_-]+/gi, '-')
         .replace(/^-+|-+$/g, '')
-        .toLowerCase() || 'pmx-model';
+        .toLowerCase() || 'model';
 }
 
 function unique(values) {
@@ -1361,7 +1481,7 @@ function ensureMaterialNames(root) {
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         ms.forEach(m => {
             if (!m) return;
-            m.name = sanitizeMaterialName(m.name || `pmx_material_${index++}`);
+            m.name = sanitizeMaterialName(m.name || `material_${index++}`);
         });
     });
 }
@@ -1372,7 +1492,7 @@ function sanitizeMaterialName(name) {
 
 function generateMtl(root) {
     const lines = [
-        '# MTL generated by PMX Viewer & Converter',
+        '# MTL generated by PMX / OBJ / FBX Viewer & Converter',
         '# Texture paths are best-effort mappings from the provided folder or ZIP.',
         ''
     ];
@@ -1418,8 +1538,8 @@ function generateAuditReport() {
     const missing = unique(textureErrors).sort();
 
     return [
-        'PMX Viewer & Converter audit',
-        '============================',
+        'PMX / OBJ / FBX Viewer & Converter audit',
+        '========================================',
         '',
         `Source model: ${currentModelEntry?.path || 'Unknown'}`,
         `Vertices: ${Math.round(stats.vertices).toLocaleString()}`,
@@ -1430,7 +1550,7 @@ function generateAuditReport() {
         `Missing or failed texture requests: ${missing.length.toLocaleString()}`,
         '',
         'Important limitations:',
-        '- OBJ is a static mesh format. PMX bones, morphs, IK, toon settings, and physics are not preserved.',
+        '- OBJ export is a static mesh package. Rigging, animation, morphs, IK, toon settings, and physics are not preserved.',
         '- Texture paths are resolved from the uploaded folder or ZIP using normalized relative paths and basename fallback.',
         '- Review the original model license/readme before porting, publishing, remixing, or selling converted files.',
         '',
