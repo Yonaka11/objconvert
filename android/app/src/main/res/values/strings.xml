@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pocket Familiar</string>
+    <string name="app_tagline">A tiny companion for your screen.</string>
+
+    <!-- Home screen -->
+    <string name="label_start_pet">Start Pet</string>
+    <string name="label_stop_pet">Stop Pet</string>
+    <string name="label_pet_size">Pet Size</string>
+    <string name="label_movement_speed">Movement Speed</string>
+    <string name="label_enable_sleep">Enable Sleep Behavior</string>
+    <string name="label_auto_start">Start Automatically After Reboot</string>
+    <string name="label_pet_selector">Pet Selector (coming soon)</string>
+    <string name="label_battery_level">Battery: %1$d%%</string>
+    <string name="label_charging">Charging</string>
+    <string name="label_not_charging">Not charging</string>
+
+    <!-- Overlay permission -->
+    <string name="overlay_permission_granted">Overlay permission: Granted</string>
+    <string name="overlay_permission_denied">Overlay permission: Not granted</string>
+    <string name="btn_grant_overlay_permission">Grant Overlay Permission</string>
+    <string name="overlay_permission_rationale">Pocket Familiar needs \"Display over other apps\" permission to show your pet companion above other apps.</string>
+
+    <!-- Notification -->
+    <string name="notification_channel_id">pocket_familiar_channel</string>
+    <string name="notification_channel_name">Pet Companion</string>
+    <string name="notification_channel_description">Shown while your Pocket Familiar pet is active.</string>
+    <string name="notification_title">Pocket Familiar is active</string>
+    <string name="notification_text">Your companion is wandering your screen.</string>
+    <string name="notification_action_stop">Stop</string>
+
+    <!-- Service errors -->
+    <string name="error_overlay_permission_missing">Cannot start pet: overlay permission not granted.</string>
+</resources>

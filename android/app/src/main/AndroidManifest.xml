@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        SYSTEM_ALERT_WINDOW: Required for TYPE_APPLICATION_OVERLAY.
+        This is a special permission the user must explicitly grant via Settings.
+    -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Required for all foreground services -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <!--
+        FOREGROUND_SERVICE_SPECIAL_USE: Required when declaring foregroundServiceType="specialUse"
+        on API 34+. The pet overlay doesn't fit any specific category (camera, location, etc.)
+        so specialUse is the correct type.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <!--
+        POST_NOTIFICATIONS: Required on API 33+ to show the foreground service notification.
+        We request this at runtime when starting the service.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- RECEIVE_BOOT_COMPLETED: placeholder for auto-start-on-boot feature -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.PocketFamiliar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            foregroundServiceType="specialUse" is required on API 34+ for services that don't
+            fit a predefined category. The <property> below describes the use case for
+            Play Store review (not needed for direct APK installs).
+        -->
+        <service
+            android:name=".service.PetOverlayService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Renders an animated pet companion overlay using WindowManager TYPE_APPLICATION_OVERLAY. No camera, microphone, location, or user data is accessed." />
+        </service>
+
+    </application>
+
+</manifest>

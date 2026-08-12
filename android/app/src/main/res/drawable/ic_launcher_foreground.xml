@@ -1,0 +1,45 @@
+<!--
+    Adaptive launcher icon foreground layer.
+    Safe zone: the central 66dp×66dp of the 108dp×108dp canvas.
+    All shapes use <path> (Android VectorDrawable only supports <path> and <group>).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Ghost body centered in safe zone -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,24
+            C43.5,24 35,32.5 35,43
+            L35,70
+            Q39.75,63 44.5,70
+            Q49.25,63 54,70
+            Q58.75,63 63.5,70
+            Q68.25,63 73,70
+            L73,43
+            C73,32.5 64.5,24 54,24 Z" />
+
+    <!-- Left eye sclera (ellipse cx=46 cy=46 rx=4 ry=5) -->
+    <path
+        android:fillColor="#A78BFA"
+        android:pathData="M42,46 a4,5 0 1,0 8,0 a4,5 0 1,0 -8,0 Z" />
+
+    <!-- Right eye sclera (ellipse cx=62 cy=46 rx=4 ry=5) -->
+    <path
+        android:fillColor="#A78BFA"
+        android:pathData="M58,46 a4,5 0 1,0 8,0 a4,5 0 1,0 -8,0 Z" />
+
+    <!-- Left pupil (circle cx=47 cy=47 r=2) -->
+    <path
+        android:fillColor="#2D1B69"
+        android:pathData="M45,47 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 Z" />
+
+    <!-- Right pupil (circle cx=63 cy=47 r=2) -->
+    <path
+        android:fillColor="#2D1B69"
+        android:pathData="M61,47 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0 Z" />
+
+</vector>

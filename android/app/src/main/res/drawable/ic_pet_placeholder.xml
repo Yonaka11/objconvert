@@ -1,0 +1,76 @@
+<!--
+    Placeholder pet graphic: a simple ghost-like floating companion.
+    All shapes use <path> elements (Android VectorDrawable does not support <ellipse>).
+    Replace with real sprite sheets when art assets are ready.
+    Dimensions: 64x80dp.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="80dp"
+    android:viewportWidth="64"
+    android:viewportHeight="80">
+
+    <!-- Ghost body: rounded top, three-bump wavy bottom -->
+    <path
+        android:fillColor="#A78BFA"
+        android:pathData="M8,36
+            C8,19.4 18.8,8 32,8
+            C45.2,8 56,19.4 56,36
+            L56,66
+            Q50,58 44,66
+            Q38,58 32,66
+            Q26,58 20,66
+            Q14,58 8,66
+            Z" />
+
+    <!-- Left eye — white sclera (ellipse cx=23 cy=36 rx=5 ry=6) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M18,36 a5,6 0 1,0 10,0 a5,6 0 1,0 -10,0 Z" />
+
+    <!-- Right eye — white sclera (ellipse cx=41 cy=36 rx=5 ry=6) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,36 a5,6 0 1,0 10,0 a5,6 0 1,0 -10,0 Z" />
+
+    <!-- Left pupil (ellipse cx=24 cy=37 rx=2.5 ry=3) -->
+    <path
+        android:fillColor="#2D1B69"
+        android:pathData="M21.5,37 a2.5,3 0 1,0 5,0 a2.5,3 0 1,0 -5,0 Z" />
+
+    <!-- Right pupil (ellipse cx=42 cy=37 rx=2.5 ry=3) -->
+    <path
+        android:fillColor="#2D1B69"
+        android:pathData="M39.5,37 a2.5,3 0 1,0 5,0 a2.5,3 0 1,0 -5,0 Z" />
+
+    <!-- Left eye highlight (circle r=1 cx=25 cy=35.5) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M24,35.5 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0 Z" />
+
+    <!-- Right eye highlight (circle r=1 cx=43 cy=35.5) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,35.5 a1,1 0 1,0 2,0 a1,1 0 1,0 -2,0 Z" />
+
+    <!-- Left cheek blush (ellipse cx=16 cy=43 rx=5 ry=3) -->
+    <path
+        android:fillColor="#F0ABFC"
+        android:fillAlpha="0.6"
+        android:pathData="M11,43 a5,3 0 1,0 10,0 a5,3 0 1,0 -10,0 Z" />
+
+    <!-- Right cheek blush (ellipse cx=48 cy=43 rx=5 ry=3) -->
+    <path
+        android:fillColor="#F0ABFC"
+        android:fillAlpha="0.6"
+        android:pathData="M43,43 a5,3 0 1,0 10,0 a5,3 0 1,0 -10,0 Z" />
+
+    <!-- Smile (open path, no fill) -->
+    <path
+        android:strokeColor="#2D1B69"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M27,47 Q32,51 37,47" />
+
+</vector>
