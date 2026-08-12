@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android Auto-Backup exclusion rules.
+    Exclude DataStore preferences from backup so settings start fresh on new devices.
+-->
+<full-backup-content>
+    <exclude domain="file" path="datastore" />
+</full-backup-content>

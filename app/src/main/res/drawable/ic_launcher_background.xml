@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Deep purple-pink gradient-like background via solid fill -->
+    <path
+        android:fillColor="#1A1A2E"
+        android:pathData="M0,0 L108,0 L108,108 L0,108 Z" />
+    <!-- Subtle star decorations -->
+    <path
+        android:fillColor="#3D3570"
+        android:pathData="M20,20 L22,15 L24,20 L29,22 L24,24 L22,29 L20,24 L15,22 Z" />
+    <path
+        android:fillColor="#3D3570"
+        android:pathData="M80,70 L82,65 L84,70 L89,72 L84,74 L82,79 L80,74 L75,72 Z" />
+    <path
+        android:fillColor="#2D2560"
+        android:pathData="M85,25 L86,22 L87,25 L90,26 L87,27 L86,30 L85,27 L82,26 Z" />
+</vector>

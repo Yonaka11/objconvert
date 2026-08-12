@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive launcher icon foreground: simplified pet silhouette -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Left ear -->
+    <path
+        android:fillColor="#F9A8C9"
+        android:pathData="M36,46 L28,26 L44,38 Z" />
+    <!-- Right ear -->
+    <path
+        android:fillColor="#F9A8C9"
+        android:pathData="M72,46 L80,26 L64,38 Z" />
+    <!-- Body -->
+    <path
+        android:fillColor="#F472B6"
+        android:pathData="M54,24 C40,24 28,36 28,50 L28,76 Q28,84 35,86 Q41,88 46,84 L46,80 Q50,86 54,86 Q58,86 62,80 L62,84 Q67,88 73,86 Q80,84 80,76 L80,50 C80,36 68,24 54,24 Z" />
+    <!-- Left eye -->
+    <path
+        android:fillColor="#2D1B4E"
+        android:pathData="M43,52 C43,48 45,46 48,46 C51,46 53,48 53,52 C53,56 51,58 48,58 C45,58 43,56 43,52 Z" />
+    <!-- Left eye shine -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M44,49 C44,48 45,47 46,47 C47,47 47,48 46,49 Z" />
+    <!-- Right eye -->
+    <path
+        android:fillColor="#2D1B4E"
+        android:pathData="M55,52 C55,48 57,46 60,46 C63,46 65,48 65,52 C65,56 63,58 60,58 C57,58 55,56 55,52 Z" />
+    <!-- Right eye shine -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M56,49 C56,48 57,47 58,47 C59,47 59,48 58,49 Z" />
+    <!-- Smile -->
+    <path
+        android:strokeColor="#C2185B"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M48,68 Q54,74 60,68" />
+</vector>

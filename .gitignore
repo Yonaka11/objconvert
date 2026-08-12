@@ -1,0 +1,21 @@
+# Android / Gradle build outputs
+.gradle/
+app/build/
+build/
+
+# Local configuration — never commit
+local.properties
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# macOS
+.DS_Store
+
+# Kotlin / JVM
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar

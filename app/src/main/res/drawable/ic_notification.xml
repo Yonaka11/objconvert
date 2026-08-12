@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Monochrome notification icon: simplified paw/star shape -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="@android:color/white">
+
+    <!-- Simple star-like pet icon for notification bar -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,2 C8.7,2 6,4.7 6,8 L6,17 Q6,20 8,21 Q10,22 12,21 Q14,22 16,21 Q18,20 18,17 L18,8 C18,4.7 15.3,2 12,2 Z" />
+    <!-- Left ear -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M7,8 L5,3 L10,6 Z" />
+    <!-- Right ear -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M17,8 L19,3 L14,6 Z" />
+
+</vector>
