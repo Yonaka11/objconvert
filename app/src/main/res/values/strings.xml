@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Pocket Familiar</string>
+    <string name="foreground_service_channel_name">Pocket Familiar overlay</string>
+    <string name="foreground_service_channel_description">Keeps your active familiar visible over other apps.</string>
+    <string name="foreground_service_notification_title">Pocket Familiar is active</string>
+    <string name="foreground_service_notification_text">Your familiar is keeping you company.</string>
+    <string name="foreground_service_stop_action">Stop</string>
+    <string name="foreground_service_special_use_subtype">Floating companion overlay controlled by the user.</string>
+</resources>
