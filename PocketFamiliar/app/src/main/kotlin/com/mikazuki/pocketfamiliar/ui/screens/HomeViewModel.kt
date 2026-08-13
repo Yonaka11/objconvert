@@ -11,8 +11,10 @@ import com.mikazuki.pocketfamiliar.model.BatteryState
 import com.mikazuki.pocketfamiliar.model.PetSettings
 import com.mikazuki.pocketfamiliar.service.PetOverlayService
 import com.mikazuki.pocketfamiliar.util.BatteryMonitor
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -26,6 +28,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     val batteryState: StateFlow<BatteryState> = batteryMonitor.batteryState
 
+    private val _hasOverlayPermission = MutableStateFlow(checkOverlayPermission())
+    val hasOverlayPermission: StateFlow<Boolean> = _hasOverlayPermission.asStateFlow()
+
     init {
         batteryMonitor.register()
     }
@@ -35,7 +40,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         batteryMonitor.unregister()
     }
 
-    fun isOverlayPermissionGranted(): Boolean =
+    /**
+     * Re-evaluate the overlay permission status.
+     * Call this from the UI on every [Lifecycle.Event.ON_RESUME] so the UI
+     * stays in sync after the user returns from the System Settings page.
+     */
+    fun refreshOverlayPermission() {
+        _hasOverlayPermission.value = checkOverlayPermission()
+    }
+
+    private fun checkOverlayPermission(): Boolean =
         Settings.canDrawOverlays(getApplication())
 
     fun startPet() {
@@ -49,8 +63,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun stopPet() {
-        val context = getApplication<Application>()
-        context.stopService(Intent(context, PetOverlayService::class.java))
+        getApplication<Application>().stopService(
+            Intent(getApplication(), PetOverlayService::class.java)
+        )
     }
 
     fun setPetSize(value: Float) = viewModelScope.launch { repository.setPetSize(value) }

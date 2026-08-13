@@ -24,4 +24,9 @@
     <string name="notification_title">Pocket Familiar is active</string>
     <string name="notification_text">Your familiar is roaming your screen.</string>
     <string name="notification_action_stop">Stop</string>
+
+    <!-- Error messages -->
+    <string name="error_overlay_permission_required">Overlay permission is required to display the pet.</string>
+    <string name="label_pet_active">Pet is active</string>
+    <string name="label_pet_inactive">Pet is not running</string>
 </resources>
