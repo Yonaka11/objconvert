@@ -40,9 +40,25 @@ A quick Android app + Google Sheets backend for compiling store inventory data b
 1. **Deploy the Sheets backend** — follow `apps-script/README.md`. You'll end up with a Web App URL and
    a secret token.
 2. **Open `android-app/` in Android Studio**, let it sync, and run it on a device (camera access is
-   needed, so an emulator with a webcam passthrough or a real phone works best).
+   needed, so an emulator with a webcam passthrough or a real phone works best). Or grab a prebuilt APK
+   — see below.
 3. **On first launch**, tap the gear/settings icon and paste in the Web App URL + token from step 1.
 4. Start scanning.
+
+## Getting an APK without Android Studio
+
+A GitHub Actions workflow (`.github/workflows/android-apk.yml`) builds a debug APK automatically on
+every push/PR that touches `android-app/`, and can also be run manually:
+
+1. Go to the repo's **Actions** tab → **Build StarByGiGi Scanner APK** → **Run workflow** (or just wait
+   for it to run on a push).
+2. Once the run finishes, open it and download the **starbygigi-scanner-debug-apk** artifact from the
+   run summary.
+3. Unzip it, copy `app-debug.apk` to your phone, and install it (you'll need to allow "install from
+   unknown sources" since this isn't a Play Store build).
+
+This is a debug build (unsigned, not optimized) — fine for personal/in-store use, but not something to
+publish to the Play Store as-is.
 
 ## Data model
 
