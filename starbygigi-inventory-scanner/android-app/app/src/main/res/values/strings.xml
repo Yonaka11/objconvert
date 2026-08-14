@@ -1,0 +1,39 @@
+<resources>
+    <string name="app_name">StarByGiGi Scanner</string>
+
+    <string name="point_camera_hint">Point the camera at a barcode</string>
+    <string name="camera_permission_required">Camera permission is required to scan barcodes</string>
+    <string name="camera_start_failed">Could not start camera: %1$s</string>
+    <string name="looking_up">Looking up %1$s…</string>
+    <string name="saving">Saving…</string>
+    <string name="generic_error">Something went wrong. Please try again.</string>
+    <string name="invalid_price">Enter a valid price</string>
+
+    <string name="new_item_title">New item — %1$s</string>
+    <string name="new_item_message">This barcode isn\'t on the sheet yet. Enter the price to add it.</string>
+    <string name="item_name_hint">Item name (optional)</string>
+    <string name="price_hint">Price</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="saved_new">Saved %1$s</string>
+
+    <string name="item_exists_title">Item exists</string>
+    <string name="item_exists_message">%1$s — current price %2$s.\nDo you want to update the price?</string>
+    <string name="no_price_on_file">no price on file</string>
+    <string name="update_price">Update price</string>
+    <string name="no_thanks">No</string>
+    <string name="update_price_title">Update price — %1$s</string>
+    <string name="update">Update</string>
+    <string name="price_updated">Updated %1$s</string>
+
+    <string name="manual_entry_button">Enter barcode manually</string>
+    <string name="manual_entry_title">Enter barcode</string>
+    <string name="manual_entry_hint">Barcode number</string>
+    <string name="lookup_button">Look up</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_first_run_message">Paste in the Google Apps Script Web App URL and the shared token from your deployment (see apps-script/README.md) to enable scanning.</string>
+    <string name="settings_url_hint">Apps Script Web App URL</string>
+    <string name="settings_token_hint">API token</string>
+    <string name="settings_saved">Settings saved</string>
+</resources>
