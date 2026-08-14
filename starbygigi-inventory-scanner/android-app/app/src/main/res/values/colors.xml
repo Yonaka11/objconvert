@@ -1,0 +1,6 @@
+<resources>
+    <color name="launcher_background">#1F1B24</color>
+    <color name="brand_primary">#D81B60</color>
+    <color name="brand_primary_dark">#AD1457</color>
+    <color name="brand_accent">#FFC1D9</color>
+</resources>
