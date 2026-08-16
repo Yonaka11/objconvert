@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Original placeholder pet graphic: a small round creature with tiny ears,
+    dot eyes, rosy cheeks, and a gentle smile. 100% original — no copyrighted
+    artwork. Replace frame drawables in pet/animation/ with real sprites later.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="80dp"
+    android:height="80dp"
+    android:viewportWidth="80"
+    android:viewportHeight="80">
+
+    <!-- Drop shadow -->
+    <path
+        android:fillColor="#22000000"
+        android:pathData="M40,74 C50,74 58,72 58,70 C58,68 50,66 40,66 C30,66 22,68 22,70 C22,72 30,74 40,74 Z" />
+
+    <!-- Left ear -->
+    <path
+        android:fillColor="#E8579A"
+        android:pathData="M22,28 L17,14 L30,22 Z" />
+    <!-- Left ear inner -->
+    <path
+        android:fillColor="#F9A8C9"
+        android:pathData="M23,26 L19,17 L28,22 Z" />
+
+    <!-- Right ear -->
+    <path
+        android:fillColor="#E8579A"
+        android:pathData="M58,28 L63,14 L50,22 Z" />
+    <!-- Right ear inner -->
+    <path
+        android:fillColor="#F9A8C9"
+        android:pathData="M57,26 L61,17 L52,22 Z" />
+
+    <!-- Body -->
+    <path
+        android:fillColor="#F472B6"
+        android:pathData="M40,10 C26,10 14,22 14,36 L14,55 Q14,66 21,68 Q27,70 32,66 L32,63 Q36,68 40,68 Q44,68 48,63 L48,66 Q53,70 59,68 Q66,66 66,55 L66,36 C66,22 54,10 40,10 Z" />
+
+    <!-- Left cheek blush -->
+    <path
+        android:fillColor="#FB7DB8"
+        android:fillAlpha="0.6"
+        android:pathData="M22,46 C22,42 25,39 28,39 C31,39 33,42 33,46 C33,50 31,53 28,53 C25,53 22,50 22,46 Z" />
+
+    <!-- Right cheek blush -->
+    <path
+        android:fillColor="#FB7DB8"
+        android:fillAlpha="0.6"
+        android:pathData="M47,46 C47,42 49,39 52,39 C55,39 58,42 58,46 C58,50 55,53 52,53 C49,53 47,50 47,46 Z" />
+
+    <!-- Left eye white -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M28,33 C28,29 30,27 33,27 C36,27 38,29 38,33 C38,37 36,39 33,39 C30,39 28,37 28,33 Z" />
+    <!-- Left pupil -->
+    <path
+        android:fillColor="#2D1B4E"
+        android:pathData="M30,33 C30,30 31,29 33,29 C35,29 36,30 36,33 C36,36 35,37 33,37 C31,37 30,36 30,33 Z" />
+    <!-- Left eye shine -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M31,30 C31,29 32,28 33,28 C34,28 34,29 33,30 C32,30 31,30 31,30 Z" />
+
+    <!-- Right eye white -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,33 C42,29 44,27 47,27 C50,27 52,29 52,33 C52,37 50,39 47,39 C44,39 42,37 42,33 Z" />
+    <!-- Right pupil -->
+    <path
+        android:fillColor="#2D1B4E"
+        android:pathData="M44,33 C44,30 45,29 47,29 C49,29 50,30 50,33 C50,36 49,37 47,37 C45,37 44,36 44,33 Z" />
+    <!-- Right eye shine -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M45,30 C45,29 46,28 47,28 C48,28 48,29 47,30 C46,30 45,30 45,30 Z" />
+
+    <!-- Nose -->
+    <path
+        android:fillColor="#E8579A"
+        android:pathData="M38,44 C38,43 39,42 40,42 C41,42 42,43 42,44 C42,45 41,46 40,46 C39,46 38,45 38,44 Z" />
+
+    <!-- Smile -->
+    <path
+        android:strokeColor="#C2185B"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M35,50 Q40,56 45,50" />
+
+    <!-- Tiny tail hint at base -->
+    <path
+        android:fillColor="#E8579A"
+        android:pathData="M40,66 Q44,70 46,68 Q44,64 40,65 Z" />
+
+</vector>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand palette -->
+    <color name="brand_primary">#FF6B9E</color>
+    <color name="brand_secondary">#A78BFA</color>
+    <color name="brand_background">#1A1A2E</color>
+
+    <!-- Material seed color — used by dynamic color fallback -->
+    <color name="seed">#FF6B9E</color>
+</resources>

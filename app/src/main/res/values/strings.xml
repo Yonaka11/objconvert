@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pocket Familiar</string>
+    <string name="app_tagline">A tiny companion for your screen.</string>
+
+    <!-- Home screen labels -->
+    <string name="label_start_pet">Start Pet</string>
+    <string name="label_stop_pet">Stop Pet</string>
+    <string name="label_grant_permission">Grant Overlay Permission</string>
+    <string name="label_pet_size">Pet Size</string>
+    <string name="label_movement_speed">Movement Speed</string>
+    <string name="label_sleep_behavior">Enable Sleep Behavior</string>
+    <string name="label_start_on_boot">Start Automatically on Reboot</string>
+    <string name="label_select_pet">Select Pet</string>
+    <string name="label_overlay_permission">Overlay Permission</string>
+    <string name="label_granted">Granted</string>
+    <string name="label_not_granted">Not Granted</string>
+    <string name="label_pet_active">Pet is active</string>
+    <string name="label_pet_inactive">Pet is not running</string>
+    <string name="label_battery">Battery</string>
+    <string name="label_charging">Charging</string>
+
+    <!-- Notification -->
+    <string name="notification_title">Pocket Familiar is active</string>
+    <string name="notification_text">Your tiny companion is on screen.</string>
+    <string name="notification_action_stop">Stop</string>
+    <string name="notification_channel_name">Pocket Familiar</string>
+    <string name="notification_channel_description">Shown while the pet overlay is active</string>
+</resources>
